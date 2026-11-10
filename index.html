@@ -1,0 +1,1416 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>3D-пространство — проверка</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #eef1f4;
+    --panel: #ffffff;
+    --text: #1b2430;
+    --muted: #5b6676;
+    --border: #d4dae2;
+    --button: #f3f5f8;
+    --button-hover: #e4e9ef;
+    --focus: #1f7a7a;
+    --scene-bg: #dfe4ea;
+    --bed: #c9a24b;
+    --grid-minor: #b38c3a;
+    --grid-major: #7d5f22;
+    --cube: #1f8a8a;
+    --warn: #d9822b;
+    --edge: #0d3f3f;
+    --ok: #1f7a4a;
+    --error: #b3261e;
+    color-scheme: light;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #161b22;
+      --panel: #1e252e;
+      --text: #e3e8ee;
+      --muted: #98a3b1;
+      --border: #2f3843;
+      --button: #26303b;
+      --button-hover: #313d4a;
+      --focus: #5cc8c8;
+      --scene-bg: #11161c;
+      --bed: #6e5a2c;
+      --grid-minor: #8a7139;
+      --grid-major: #c9a24b;
+      --cube: #2fb3b3;
+      --warn: #e8a33d;
+      --edge: #bff0f0;
+      --ok: #5ccf8e;
+      --error: #ff8a80;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #161b22;
+    --panel: #1e252e;
+    --text: #e3e8ee;
+    --muted: #98a3b1;
+    --border: #2f3843;
+    --button: #26303b;
+    --button-hover: #313d4a;
+    --focus: #5cc8c8;
+    --scene-bg: #11161c;
+    --bed: #6e5a2c;
+    --grid-minor: #8a7139;
+    --grid-major: #c9a24b;
+    --cube: #2fb3b3;
+    --warn: #e8a33d;
+    --edge: #bff0f0;
+    --ok: #5ccf8e;
+    --error: #ff8a80;
+    color-scheme: dark;
+  }
+  html { height: 100%; scroll-padding-top: env(safe-area-inset-top, 0px); }
+  body {
+    height: 100%;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.4;
+  }
+  header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 16px;
+    padding: 10px 14px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+  }
+  h1 { font-size: 16px; font-weight: 600; margin: 0; margin-right: auto; }
+  .group { display: flex; flex-wrap: wrap; gap: 6px; }
+  button {
+    font: inherit;
+    font-size: 14px;
+    padding: 6px 12px;
+    color: var(--text);
+    background: var(--button);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  button:hover { background: var(--button-hover); }
+  button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  #viewport { position: relative; flex: 1; min-height: 0; overflow: hidden; }
+  #viewport canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  .overlay {
+    position: absolute;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 13px;
+    max-width: calc(100% - 24px);
+    box-sizing: border-box;
+  }
+  #info { left: 12px; bottom: 12px; }
+  #info dl { margin: 0; display: grid; grid-template-columns: auto auto; gap: 2px 12px; }
+  #info dt { color: var(--muted); }
+  #info dd { margin: 0; font-variant-numeric: tabular-nums; }
+  #obj-actions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+  #obj-actions[hidden] { display: none; }
+  #obj-actions button { font-size: 12px; padding: 2px 8px; border-radius: 4px; }
+  #obj-actions button[aria-pressed="true"] { background: var(--focus); border-color: var(--focus); color: var(--panel); }
+  #hint { right: 12px; bottom: 12px; color: var(--muted); max-width: 340px; }
+  #status { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  #status.ok { color: var(--ok); }
+  #status.error { color: var(--error); }
+  .lang { display: flex; align-items: center; gap: 4px; color: var(--muted); }
+  .lang select {
+    font: inherit; font-size: 13px; padding: 3px 6px; max-width: 160px;
+    color: var(--text); background: var(--button);
+    border: 1px solid var(--border); border-radius: 6px;
+  }
+  .lang select:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .axis-x { color: #d64541; font-weight: 600; }
+  .axis-y { color: #2e9e4f; font-weight: 600; }
+  .axis-z { color: #3a6fd8; font-weight: 600; }
+  #settings {
+    position: absolute; left: 12px; top: 12px;
+    display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px;
+    max-width: calc(100% - 180px);
+  }
+  #settings > .overlay { position: static; max-width: none; }
+  #bed-panel, #temp-panel { padding: 0; width: 196px; font-size: 12px; border-radius: 6px; }
+  #bed-panel summary, #temp-panel summary { padding: 4px 8px; cursor: pointer; font-weight: 600; color: var(--muted); }
+  #bed-panel summary:focus-visible, #temp-panel summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 6px; }
+  #bed-panel .fields, #temp-panel .fields { padding: 0 8px 6px; display: grid; gap: 3px; }
+  .field { display: flex; align-items: center; gap: 6px; }
+  .field label { width: 14px; display: flex; justify-content: center; flex: none; }
+  .temp-icon { color: var(--muted); }
+  .temp-sub { margin: 3px 0 0; color: var(--muted); font-size: 11px; }
+  .field input[type="range"] { flex: 1; min-width: 0; height: 14px; margin: 0; accent-color: var(--focus); }
+  .field input[type="number"] {
+    width: 52px; font: inherit; font-size: 12px; padding: 1px 4px;
+    color: var(--text); background: var(--button);
+    border: 1px solid var(--border); border-radius: 4px;
+    font-variant-numeric: tabular-nums;
+  }
+  .field input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+  .field input.invalid { border-color: var(--error); }
+  #add-panel { right: 12px; top: 12px; padding: 0; font-size: 12px; border-radius: 6px; }
+  #add-toggle {
+    font-size: 12px; font-weight: 600; padding: 4px 10px;
+    color: var(--text); background: transparent; border: 0; border-radius: 6px;
+  }
+  #add-toggle:hover { background: var(--button-hover); }
+  #add-menu { list-style: none; margin: 0; padding: 0 4px 4px; display: grid; gap: 1px; }
+  #add-menu[hidden] { display: none; }
+  #add-menu button {
+    width: 100%; text-align: left; font-size: 12px; padding: 4px 8px;
+    background: transparent; border: 0; border-radius: 4px;
+  }
+  #add-menu button:hover { background: var(--button-hover); }
+  #add-menu .sep { height: 1px; background: var(--border); margin: 3px 4px; }
+  #toast {
+    left: 50%; top: 12px; transform: translateX(-50%);
+    width: max-content; max-width: min(520px, calc(100% - 24px));
+  }
+  #toast[hidden], #drop-zone[hidden] { display: none; }
+  #toast.error { color: var(--error); border-color: var(--error); }
+  #drop-zone {
+    position: absolute; inset: 8px; pointer-events: none;
+    display: flex; align-items: center; justify-content: center; text-align: center;
+    border: 2px dashed var(--focus); border-radius: 10px;
+    background: rgba(31, 122, 122, 0.10);
+    color: var(--text); font-size: 16px; font-weight: 600; padding: 16px;
+  }
+  @media (max-width: 640px) {
+    #hint { display: none; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1 data-i18n="title">3D-пространство</h1>
+  <div class="group" role="group" aria-label="Вид">
+    <button type="button" data-view="iso" data-i18n="vIso">Изометрия</button>
+    <button type="button" data-view="top" data-i18n="vTop">Сверху</button>
+    <button type="button" data-view="front" data-i18n="vFront">Спереди</button>
+    <button type="button" data-view="side" data-i18n="vSide">Сбоку</button>
+    <button type="button" data-view="object" data-i18n="vObject">К объекту</button>
+  </div>
+  <span id="status">Загрузка…</span>
+  <label class="lang" id="lang-label"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="8" cy="8" r="6.3"/><path d="M1.7 8h12.6M8 1.7c1.9 1.8 2.8 3.9 2.8 6.3S9.9 12.5 8 14.3M8 1.7C6.1 3.5 5.2 5.6 5.2 8s.9 4.5 2.8 6.3"/></svg><select id="lang-select"></select></label>
+</header>
+
+<main id="viewport">
+  <div id="settings">
+  <details id="bed-panel" class="overlay" open data-i18n-title="bedTip" title="Ползунок: от 50 до 600 мм. Поле: от 50 до 1000 мм, точность 0,1 мм.">
+    <summary id="bed-summary">Стол, мм</summary>
+    <div class="fields">
+      <div class="field">
+        <label for="bed-x-num" class="axis-x">X</label>
+        <input type="range" id="bed-x-range" min="50" max="600" step="1" aria-label="Ширина стола (X), ползунок">
+        <input type="number" id="bed-x-num" min="50" max="1000" step="0.1" inputmode="decimal" aria-label="Ширина стола (X), мм">
+      </div>
+      <div class="field">
+        <label for="bed-y-num" class="axis-y">Y</label>
+        <input type="range" id="bed-y-range" min="50" max="600" step="1" aria-label="Длина стола (Y), ползунок">
+        <input type="number" id="bed-y-num" min="50" max="1000" step="0.1" inputmode="decimal" aria-label="Длина стола (Y), мм">
+      </div>
+    </div>
+  </details>
+  <details id="temp-panel" class="overlay" open data-i18n-title="tempTip" title="Сопло: от 150 до 300 °C. Стол: от 0 до 120 °C (0 — без нагрева).">
+    <summary data-i18n="tempTitle">Температура, °C</summary>
+    <div class="fields">
+      <div class="field">
+        <label for="t-nozzle-num" class="temp-icon" title="Сопло"><svg viewBox="0 0 14 14" width="14" height="14" aria-hidden="true"><rect x="3" y="1" width="8" height="5" rx="1" fill="currentColor"/><path d="M4.5 7h5l-1.6 4.2h-1.8z" fill="currentColor"/><rect x="6.4" y="11.6" width="1.2" height="1.6" fill="currentColor"/></svg></label>
+        <input type="range" id="t-nozzle-range" min="150" max="300" step="1" aria-label="Температура сопла, ползунок">
+        <input type="number" id="t-nozzle-num" min="150" max="300" step="1" inputmode="numeric" aria-label="Температура сопла, °C">
+      </div>
+      <div class="field">
+        <label for="t-bed-num" class="temp-icon" title="Стол"><svg viewBox="0 0 14 14" width="14" height="14" aria-hidden="true"><rect x="2" y="2" width="10" height="10" rx="1" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></label>
+        <input type="range" id="t-bed-range" min="0" max="120" step="1" aria-label="Температура стола, ползунок">
+        <input type="number" id="t-bed-num" min="0" max="120" step="1" inputmode="numeric" aria-label="Температура стола, °C">
+      </div>
+      <p class="temp-sub" data-i18n="firstLayer">Температура первого слоя</p>
+      <div class="field">
+        <label for="t-nozzle1-num" class="temp-icon" title="Сопло, первый слой"><svg viewBox="0 0 14 14" width="14" height="14" aria-hidden="true"><rect x="3" y="1" width="8" height="5" rx="1" fill="currentColor"/><path d="M4.5 7h5l-1.6 4.2h-1.8z" fill="currentColor"/><rect x="6.4" y="11.6" width="1.2" height="1.6" fill="currentColor"/></svg></label>
+        <input type="range" id="t-nozzle1-range" min="150" max="300" step="1" aria-label="Температура сопла на первом слое, ползунок">
+        <input type="number" id="t-nozzle1-num" min="150" max="300" step="1" inputmode="numeric" aria-label="Температура сопла на первом слое, °C">
+      </div>
+      <div class="field">
+        <label for="t-bed1-num" class="temp-icon" title="Стол, первый слой"><svg viewBox="0 0 14 14" width="14" height="14" aria-hidden="true"><rect x="2" y="2" width="10" height="10" rx="1" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></label>
+        <input type="range" id="t-bed1-range" min="0" max="120" step="1" aria-label="Температура стола на первом слое, ползунок">
+        <input type="number" id="t-bed1-num" min="0" max="120" step="1" inputmode="numeric" aria-label="Температура стола на первом слое, °C">
+      </div>
+    </div>
+  </details>
+  </div>
+  <div id="add-panel" class="overlay">
+    <button type="button" id="add-toggle" aria-expanded="false" aria-controls="add-menu">Добавить объект ▾</button>
+    <ul id="add-menu" hidden>
+      <li><button type="button" data-shape="cube" data-i18n="cube">Куб</button></li>
+      <li><button type="button" data-shape="sphere" data-i18n="sphere">Шар</button></li>
+      <li><button type="button" data-shape="cylinder" data-i18n="cylinder">Цилиндр</button></li>
+      <li><button type="button" data-shape="torus" data-i18n="torus">Тор</button></li>
+      <li><button type="button" data-shape="plate" data-i18n="plate">Пластина</button></li>
+      <li class="sep" role="separator"></li>
+      <li><button type="button" id="open-file" data-i18n="open">Открыть файл…</button></li>
+    </ul>
+    <input type="file" id="file-input" multiple hidden>
+  </div>
+  <div id="info" class="overlay">
+    <dl>
+      <dt data-i18n="bed">Стол</dt><dd id="bed-size">—</dd>
+      <dt data-i18n="iObject">Объект</dt><dd id="obj-name">—</dd>
+      <dt data-i18n="iSize">Размер</dt><dd id="obj-size">—</dd>
+      <dt data-i18n="iPos">Положение</dt><dd id="obj-pos">—</dd>
+      <dt data-i18n="iRot">Поворот</dt><dd id="obj-rot">—</dd>
+      <dt data-i18n="iScale">Масштаб</dt><dd id="obj-scale">—</dd>
+      <dt data-i18n="iTool">Инструмент</dt><dd id="tool">перемещение</dd>
+      <dt data-i18n="iAxes">Оси</dt><dd><span class="axis-x">X</span> <span class="axis-y">Y</span> <span class="axis-z">Z</span></dd>
+    </dl>
+    <div id="obj-actions" hidden>
+      <button type="button" data-tool="rotate" aria-pressed="false">Поворот (R)</button>
+      <button type="button" data-tool="scale" aria-pressed="false">Масштаб (S)</button>
+      <button type="button" id="obj-delete" data-i18n="delete">Удалить</button>
+    </div>
+  </div>
+  <div id="hint" class="overlay"></div>
+  <div id="toast" class="overlay" role="status" hidden></div>
+  <div id="drop-zone" hidden data-i18n="drop">Отпустите файл, чтобы добавить модель на стол</div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/TransformControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/fflate.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/curves/NURBSUtils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/curves/NURBSCurve.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/FBXLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/PLYLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/3MFLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/AMFLoader.js"></script>
+<script>
+// Переводы интерфейса (20 языков). Загружаются один раз, на скорость работы не влияют.
+window.I18N_ORDER = ["ru", "kk", "en", "uz", "uk", "tr", "de", "fr", "es", "pt", "it", "pl", "nl", "zh", "ja", "ko", "ar", "hi", "id", "vi"];
+window.I18N = {"ru":{"langName":"Русский","title":"3D-пространство","vIso":"Изометрия","vTop":"Сверху","vFront":"Спереди","vSide":"Сбоку","vObject":"К объекту","loading":"Загрузка…","fps":"WebGL работает, {n} кадров в секунду","errLib":"Ошибка: не загрузилась библиотека three.js. Проверьте подключение к интернету и обновите страницу.","errGl":"Ошибка: браузер не поддерживает WebGL или он отключён.","bed":"Стол","bedTip":"Ползунок: от 50 до 600 мм. Поле: от 50 до 1000 мм, точность 0,1 мм.","width":"Ширина","length":"Длина","slider":"ползунок","tempTitle":"Температура, °C","tempTip":"Сопло: от 150 до 300 °C. Стол: от 0 до 120 °C (0 — без нагрева).","nozzle":"Сопло","firstLayer":"Температура первого слоя","firstLayerShort":"первый слой","add":"Добавить объект","cube":"Куб","sphere":"Шар","cylinder":"Цилиндр","torus":"Тор","plate":"Пластина","open":"Открыть файл…","iObject":"Объект","iSize":"Размер","iPos":"Положение","iRot":"Поворот","iScale":"Масштаб","iTool":"Инструмент","iAxes":"Оси","rotate":"Поворот","scale":"Масштаб","delete":"Удалить","move":"Перемещение","none":"нет","notSel":"не выбран (всего: {n})","outside":"выходит за стол","total":"всего объектов: {n}","mm":"мм","hintTouch":"Один палец — вращение, на объекте — перемещение. Два пальца — масштаб и сдвиг.","hintMouse":"Клик по объекту — выделение, перетаскивание — перемещение (с клавишей Shift — по сетке 10 мм). Выделенный объект: R — поворот, S — масштаб (с клавишей Shift — шагами), Ctrl+C, Ctrl+V, Delete. Левая кнопка мыши на пустом месте — вращение, правая кнопка мыши — сдвиг, колесо мыши — масштаб. Файл модели можно перетащить в окно.","drop":"Отпустите файл, чтобы добавить модель на стол","language":"Язык","fileMsg":"{f}: {m}","tLoading":"Загрузка: {f}…","tLoaded":"{f}: загружено, {t} треугольников, {s} мм.","tTiny":"Модель очень маленькая: возможно, она сохранена в метрах. Увеличьте её клавишей S.","tBig":"Модель больше стола: уменьшите её клавишей S или увеличьте стол.","tNoSurf":"в файле нет поверхностей для печати.","tBadCoords":"в файле ошибочные координаты вершин.","tReadFail":"не удалось прочитать файл ({e}).","tFormatErr":"ошибка формата","tDiskFail":"не удалось прочитать файл с диска.","tUnsupported":"формат не поддерживается. Поддерживаются: {list}.","mBlend":"Файлы Blender (.blend) браузер прочитать не может. В Blender: Файл → Экспорт → STL, OBJ или glTF (.glb).","mStep":"Формат STEP/IGES в веб-версии пока не поддерживается. Экспортируйте модель из CAD-программы в STL или 3MF.","mCad":"Это собственный формат CAD-программы, сторонние программы его не открывают. Экспортируйте модель в STL или 3MF.","mGcode":"Это уже нарезанный G-code для принтера, а не модель.","mArchive":"Это архив. Распакуйте его и перетащите файл модели.","eGltf":"ошибка glTF. Если файл .gltf ссылается на отдельные файлы, сохраните модель как .glb","eDraco":"модель сжата (Draco или meshopt), такое сжатие пока не поддерживается. Сохраните модель без сжатия","e3mf":"файл повреждён или не является 3MF","eUnknown":"неизвестный формат"},"kk":{"langName":"Қазақша","title":"3D кеңістік","vIso":"Изометрия","vTop":"Жоғарыдан","vFront":"Алдынан","vSide":"Бүйірінен","vObject":"Нысанға","loading":"Жүктелуде…","fps":"WebGL жұмыс істеп тұр, секундына {n} кадр","errLib":"Қате: three.js кітапханасы жүктелмеді. Интернет байланысын тексеріп, бетті жаңартыңыз.","errGl":"Қате: браузер WebGL-ді қолдамайды немесе ол өшірулі.","bed":"Үстел","bedTip":"Жүгірткі: 50-ден 600 мм-ге дейін. Өріс: 50-ден 1000 мм-ге дейін, дәлдігі 0,1 мм.","width":"Ені","length":"Ұзындығы","slider":"жүгірткі","tempTitle":"Температура, °C","tempTip":"Сопло: 150-ден 300 °C-қа дейін. Үстел: 0-ден 120 °C-қа дейін (0 — қыздырусыз).","nozzle":"Сопло","firstLayer":"Бірінші қабат температурасы","firstLayerShort":"бірінші қабат","add":"Нысан қосу","cube":"Текше","sphere":"Шар","cylinder":"Цилиндр","torus":"Тор","plate":"Пластина","open":"Файлды ашу…","iObject":"Нысан","iSize":"Өлшемі","iPos":"Орны","iRot":"Бұрылыс","iScale":"Масштаб","iTool":"Құрал","iAxes":"Осьтер","rotate":"Бұру","scale":"Масштаб","delete":"Жою","move":"Жылжыту","none":"жоқ","notSel":"таңдалмаған (барлығы: {n})","outside":"үстелден шығып тұр","total":"барлық нысан: {n}","mm":"мм","hintTouch":"Бір саусақ — көріністі айналдыру, нысан үстінде — жылжыту. Екі саусақ — масштаб және жылжыту.","hintMouse":"Нысанды басу — таңдау, сүйреу — жылжыту (Shift пернесімен — 10 мм тор бойынша). Таңдалған нысан: R — бұру, S — масштаб (Shift пернесімен — қадаммен), Ctrl+C, Ctrl+V, Delete. Бос жерде тінтуірдің сол жақ батырмасы — айналдыру, оң жақ батырмасы — жылжыту, дөңгелегі — масштаб. Модель файлын терезеге сүйреп әкелуге болады.","drop":"Модельді үстелге қосу үшін файлды жіберіңіз","language":"Тіл","tLoading":"Жүктелуде: {f}…","tLoaded":"{f}: жүктелді, {t} үшбұрыш, {s} мм.","tTiny":"Модель өте кішкентай: мүмкін, ол метрмен сақталған. Оны S пернесімен үлкейтіңіз.","tBig":"Модель үстелден үлкен: оны S пернесімен кішірейтіңіз немесе үстелді үлкейтіңіз.","tNoSurf":"файлда басып шығаруға арналған беттер жоқ.","tBadCoords":"файлдағы төбелердің координаттары қате.","tReadFail":"файлды оқу мүмкін болмады ({e}).","tFormatErr":"формат қатесі","tDiskFail":"файлды дискіден оқу мүмкін болмады.","tUnsupported":"формат қолдау көрсетілмейді. Қолдау көрсетілетіндер: {list}.","mBlend":"Blender файлдарын (.blend) браузер оқи алмайды. Blender-де: Файл → Экспорт → STL, OBJ немесе glTF (.glb).","mStep":"STEP/IGES форматы веб-нұсқада әзірге қолдау көрсетілмейді. Модельді CAD бағдарламасынан STL немесе 3MF форматына экспорттаңыз.","mCad":"Бұл CAD бағдарламасының өз форматы, басқа бағдарламалар оны ашпайды. Модельді STL немесе 3MF форматына экспорттаңыз.","mGcode":"Бұл модель емес, принтерге арналған дайын G-code.","mArchive":"Бұл архив. Оны ашып, модель файлын сүйреп әкеліңіз.","eGltf":"glTF қатесі. Егер .gltf файлы бөлек файлдарға сілтеме жасаса, модельді .glb ретінде сақтаңыз","eDraco":"модель сығылған (Draco немесе meshopt), мұндай сығу әзірге қолдау көрсетілмейді. Модельді сығусыз сақтаңыз","e3mf":"файл бүлінген немесе 3MF емес","eUnknown":"белгісіз формат"},"en":{"langName":"English","title":"3D workspace","vIso":"Isometric","vTop":"Top","vFront":"Front","vSide":"Side","vObject":"Focus object","loading":"Loading…","fps":"WebGL OK, {n} fps","errLib":"Error: the three.js library did not load. Check your internet connection and reload the page.","errGl":"Error: the browser does not support WebGL or it is turned off.","bed":"Bed","bedTip":"Slider: 50 to 600 mm. Field: 50 to 1000 mm, accuracy 0.1 mm.","width":"Width","length":"Length","slider":"slider","tempTitle":"Temperature, °C","tempTip":"Nozzle: 150 to 300 °C. Bed: 0 to 120 °C (0 = no heating).","nozzle":"Nozzle","firstLayer":"First layer temperature","firstLayerShort":"first layer","add":"Add object","cube":"Cube","sphere":"Sphere","cylinder":"Cylinder","torus":"Torus","plate":"Plate","open":"Open file…","iObject":"Object","iSize":"Size","iPos":"Position","iRot":"Rotation","iScale":"Scale","iTool":"Tool","iAxes":"Axes","rotate":"Rotate","scale":"Scale","delete":"Delete","move":"Move","none":"none","notSel":"not selected (total: {n})","outside":"outside the bed","total":"total objects: {n}","mm":"mm","hintTouch":"One finger: rotate the view, on an object: move it. Two fingers: zoom and pan.","hintMouse":"Click an object to select it, drag to move it (hold Shift to snap to the 10 mm grid). Selected object: R rotate, S scale (hold Shift for steps), Ctrl+C, Ctrl+V, Delete. Left mouse button on empty space: rotate the view, right mouse button: pan, mouse wheel: zoom. You can drag a model file into the window.","drop":"Drop the file to add the model to the bed","language":"Language","fileMsg":"{f}: {m}","tLoading":"Loading: {f}…","tLoaded":"{f}: loaded, {t} triangles, {s} mm.","tTiny":"The model is very small: it may have been saved in meters. Enlarge it with S.","tBig":"The model is larger than the bed: shrink it with S or enlarge the bed.","tNoSurf":"the file has no printable surfaces.","tBadCoords":"the file has invalid vertex coordinates.","tReadFail":"could not read the file ({e}).","tFormatErr":"format error","tDiskFail":"could not read the file from disk.","tUnsupported":"format not supported. Supported: {list}.","mBlend":"Blender files (.blend) cannot be read in a browser. In Blender: File → Export → STL, OBJ or glTF (.glb).","mStep":"STEP/IGES is not supported in the web version yet. Export the model from your CAD program to STL or 3MF.","mCad":"This is a CAD program's own format; other programs cannot open it. Export the model to STL or 3MF.","mGcode":"This is already sliced G-code for a printer, not a model.","mArchive":"This is an archive. Unpack it and drag in the model file.","eGltf":"glTF error. If the .gltf file refers to separate files, save the model as .glb","eDraco":"the model is compressed (Draco or meshopt), which is not supported yet. Save the model without compression","e3mf":"the file is damaged or is not 3MF","eUnknown":"unknown format"},"uz":{"langName":"O‘zbekcha","title":"3D maydon","vIso":"Izometriya","vTop":"Yuqoridan","vFront":"Oldidan","vSide":"Yonidan","vObject":"Obyektga","loading":"Yuklanmoqda…","fps":"WebGL ishlayapti, soniyasiga {n} kadr","errLib":"Xato: three.js kutubxonasi yuklanmadi. Internet aloqasini tekshirib, sahifani yangilang.","errGl":"Xato: brauzer WebGL’ni qo‘llab-quvvatlamaydi yoki u o‘chirilgan.","bed":"Stol","bedTip":"Slayder: 50 dan 600 mm gacha. Maydon: 50 dan 1000 mm gacha, aniqlik 0,1 mm.","width":"Kenglik","length":"Uzunlik","slider":"slayder","tempTitle":"Harorat, °C","tempTip":"Soplo: 150 dan 300 °C gacha. Stol: 0 dan 120 °C gacha (0 — isitmasiz).","nozzle":"Soplo","firstLayer":"Birinchi qatlam harorati","firstLayerShort":"birinchi qatlam","add":"Obyekt qo‘shish","cube":"Kub","sphere":"Shar","cylinder":"Silindr","torus":"Tor","plate":"Plastina","open":"Faylni ochish…","iObject":"Obyekt","iSize":"O‘lcham","iPos":"Joylashuv","iRot":"Burilish","iScale":"Masshtab","iTool":"Asbob","iAxes":"O‘qlar","rotate":"Burish","scale":"Masshtab","delete":"O‘chirish","move":"Ko‘chirish","none":"yo‘q","notSel":"tanlanmagan (jami: {n})","outside":"stoldan chiqib turibdi","total":"jami obyektlar: {n}","mm":"mm","hintTouch":"Bir barmoq — ko‘rinishni aylantirish, obyekt ustida — ko‘chirish. Ikki barmoq — masshtab va surish.","hintMouse":"Obyektni bosish — tanlash, sudrash — ko‘chirish (Shift bilan — 10 mm to‘r bo‘yicha). Tanlangan obyekt: R — burish, S — masshtab (Shift bilan — qadamlab), Ctrl+C, Ctrl+V, Delete. Bo‘sh joyda sichqonchaning chap tugmasi — aylantirish, o‘ng tugmasi — surish, g‘ildiragi — masshtab. Model faylini oynaga sudrab olib kelish mumkin.","drop":"Modelni stolga qo‘shish uchun faylni qo‘yib yuboring","language":"Til","tLoading":"Yuklanmoqda: {f}…","tLoaded":"{f}: yuklandi, {t} ta uchburchak, {s} mm.","tTiny":"Model juda kichik: ehtimol, u metrlarda saqlangan. Uni S tugmasi bilan kattalashtiring.","tBig":"Model stoldan katta: uni S tugmasi bilan kichraytiring yoki stolni kattalashtiring.","tNoSurf":"faylda bosib chiqarish uchun sirtlar yo‘q.","tBadCoords":"faylda uchlarning koordinatalari noto‘g‘ri.","tReadFail":"faylni o‘qib bo‘lmadi ({e}).","tFormatErr":"format xatosi","tDiskFail":"faylni diskdan o‘qib bo‘lmadi.","tUnsupported":"format qo‘llab-quvvatlanmaydi. Qo‘llab-quvvatlanadi: {list}.","mBlend":"Blender fayllarini (.blend) brauzer o‘qiy olmaydi. Blender’da: File → Export → STL, OBJ yoki glTF (.glb).","mStep":"STEP/IGES formati veb-versiyada hozircha qo‘llab-quvvatlanmaydi. Modelni CAD dasturidan STL yoki 3MF formatiga eksport qiling.","mCad":"Bu CAD dasturining o‘z formati, boshqa dasturlar uni ochmaydi. Modelni STL yoki 3MF formatiga eksport qiling.","mGcode":"Bu model emas, printer uchun tayyor G-code.","mArchive":"Bu arxiv. Uni oching va model faylini sudrab olib keling.","eGltf":"glTF xatosi. Agar .gltf fayli alohida fayllarga havola qilsa, modelni .glb sifatida saqlang","eDraco":"model siqilgan (Draco yoki meshopt), bunday siqish hozircha qo‘llab-quvvatlanmaydi. Modelni siqmasdan saqlang","e3mf":"fayl shikastlangan yoki 3MF emas","eUnknown":"noma’lum format"},"uk":{"langName":"Українська","title":"3D-простір","vIso":"Ізометрія","vTop":"Згори","vFront":"Спереду","vSide":"Збоку","vObject":"До об’єкта","loading":"Завантаження…","fps":"WebGL працює, {n} кадрів за секунду","errLib":"Помилка: не завантажилася бібліотека three.js. Перевірте підключення до інтернету й оновіть сторінку.","errGl":"Помилка: браузер не підтримує WebGL або його вимкнено.","bed":"Стіл","bedTip":"Повзунок: від 50 до 600 мм. Поле: від 50 до 1000 мм, точність 0,1 мм.","width":"Ширина","length":"Довжина","slider":"повзунок","tempTitle":"Температура, °C","tempTip":"Сопло: від 150 до 300 °C. Стіл: від 0 до 120 °C (0 — без нагрівання).","nozzle":"Сопло","firstLayer":"Температура першого шару","firstLayerShort":"перший шар","add":"Додати об’єкт","cube":"Куб","sphere":"Куля","cylinder":"Циліндр","torus":"Тор","plate":"Пластина","open":"Відкрити файл…","iObject":"Об’єкт","iSize":"Розмір","iPos":"Положення","iRot":"Поворот","iScale":"Масштаб","iTool":"Інструмент","iAxes":"Осі","rotate":"Поворот","scale":"Масштаб","delete":"Видалити","move":"Переміщення","none":"немає","notSel":"не вибрано (усього: {n})","outside":"виходить за стіл","total":"усього об’єктів: {n}","mm":"мм","hintTouch":"Один палець — обертання, на об’єкті — переміщення. Два пальці — масштаб і зсув.","hintMouse":"Клік по об’єкту — виділення, перетягування — переміщення (з клавішею Shift — по сітці 10 мм). Виділений об’єкт: R — поворот, S — масштаб (з клавішею Shift — кроками), Ctrl+C, Ctrl+V, Delete. Ліва кнопка миші на порожньому місці — обертання, права кнопка миші — зсув, коліщатко миші — масштаб. Файл моделі можна перетягнути у вікно.","drop":"Відпустіть файл, щоб додати модель на стіл","language":"Мова","tLoading":"Завантаження: {f}…","tLoaded":"{f}: завантажено, трикутників: {t}, {s} мм.","tTiny":"Модель дуже маленька: можливо, її збережено в метрах. Збільште її клавішею S.","tBig":"Модель більша за стіл: зменште її клавішею S або збільште стіл.","tNoSurf":"у файлі немає поверхонь для друку.","tBadCoords":"у файлі помилкові координати вершин.","tReadFail":"не вдалося прочитати файл ({e}).","tFormatErr":"помилка формату","tDiskFail":"не вдалося прочитати файл із диска.","tUnsupported":"формат не підтримується. Підтримуються: {list}.","mBlend":"Файли Blender (.blend) браузер прочитати не може. У Blender: File → Export → STL, OBJ або glTF (.glb).","mStep":"Формат STEP/IGES у вебверсії поки не підтримується. Експортуйте модель із CAD-програми в STL або 3MF.","mCad":"Це власний формат CAD-програми, інші програми його не відкривають. Експортуйте модель у STL або 3MF.","mGcode":"Це вже нарізаний G-code для принтера, а не модель.","mArchive":"Це архів. Розпакуйте його й перетягніть файл моделі.","eGltf":"помилка glTF. Якщо файл .gltf посилається на окремі файли, збережіть модель як .glb","eDraco":"модель стиснута (Draco або meshopt), таке стиснення поки не підтримується. Збережіть модель без стиснення","e3mf":"файл пошкоджено або це не 3MF","eUnknown":"невідомий формат"},"tr":{"langName":"Türkçe","title":"3D çalışma alanı","vIso":"İzometrik","vTop":"Üstten","vFront":"Önden","vSide":"Yandan","vObject":"Nesneye odakla","loading":"Yükleniyor…","fps":"WebGL çalışıyor, saniyede {n} kare","errLib":"Hata: three.js kitaplığı yüklenmedi. İnternet bağlantınızı kontrol edip sayfayı yenileyin.","errGl":"Hata: tarayıcı WebGL’i desteklemiyor veya WebGL kapalı.","bed":"Tabla","bedTip":"Kaydırıcı: 50–600 mm. Alan: 50–1000 mm, 0,1 mm hassasiyet.","width":"Genişlik","length":"Uzunluk","slider":"kaydırıcı","tempTitle":"Sıcaklık, °C","tempTip":"Nozül: 150–300 °C. Tabla: 0–120 °C (0 = ısıtma yok).","nozzle":"Nozül","firstLayer":"İlk katman sıcaklığı","firstLayerShort":"ilk katman","add":"Nesne ekle","cube":"Küp","sphere":"Küre","cylinder":"Silindir","torus":"Simit","plate":"Plaka","open":"Dosya aç…","iObject":"Nesne","iSize":"Boyut","iPos":"Konum","iRot":"Döndürme","iScale":"Ölçek","iTool":"Araç","iAxes":"Eksenler","rotate":"Döndür","scale":"Ölçekle","delete":"Sil","move":"Taşıma","none":"yok","notSel":"seçili değil (toplam: {n})","outside":"tablanın dışına taşıyor","total":"toplam nesne: {n}","mm":"mm","hintTouch":"Tek parmak: görünümü döndür, nesne üzerinde: taşı. İki parmak: yakınlaştır ve kaydır.","hintMouse":"Nesneye tıklayın: seçim, sürükleyin: taşıma (Shift ile 10 mm ızgaraya göre). Seçili nesne: R döndür, S ölçekle (Shift ile adım adım), Ctrl+C, Ctrl+V, Delete. Boş alanda sol fare tuşu: görünümü döndür, sağ fare tuşu: kaydır, fare tekerleği: yakınlaştır. Model dosyasını pencereye sürükleyebilirsiniz.","drop":"Modeli tablaya eklemek için dosyayı bırakın","language":"Dil","tLoading":"Yükleniyor: {f}…","tLoaded":"{f}: yüklendi, {t} üçgen, {s} mm.","tTiny":"Model çok küçük: metre cinsinden kaydedilmiş olabilir. S ile büyütün.","tBig":"Model tabladan büyük: S ile küçültün veya tablayı büyütün.","tNoSurf":"dosyada basılabilir yüzey yok.","tBadCoords":"dosyada hatalı köşe koordinatları var.","tReadFail":"dosya okunamadı ({e}).","tFormatErr":"biçim hatası","tDiskFail":"dosya diskten okunamadı.","tUnsupported":"biçim desteklenmiyor. Desteklenenler: {list}.","mBlend":"Blender dosyaları (.blend) tarayıcıda okunamaz. Blender’da: File → Export → STL, OBJ veya glTF (.glb).","mStep":"STEP/IGES web sürümünde henüz desteklenmiyor. Modeli CAD programınızdan STL veya 3MF olarak dışa aktarın.","mCad":"Bu, bir CAD programının kendi biçimidir; başka programlar açamaz. Modeli STL veya 3MF olarak dışa aktarın.","mGcode":"Bu bir model değil, yazıcı için dilimlenmiş G-code.","mArchive":"Bu bir arşiv. Arşivi açın ve model dosyasını sürükleyin.","eGltf":"glTF hatası. .gltf dosyası ayrı dosyalara başvuruyorsa modeli .glb olarak kaydedin","eDraco":"model sıkıştırılmış (Draco veya meshopt); bu sıkıştırma henüz desteklenmiyor. Modeli sıkıştırmadan kaydedin","e3mf":"dosya bozuk veya 3MF değil","eUnknown":"bilinmeyen biçim"},"de":{"langName":"Deutsch","title":"3D-Arbeitsbereich","vIso":"Isometrisch","vTop":"Oben","vFront":"Vorne","vSide":"Seite","vObject":"Zum Objekt","loading":"Wird geladen…","fps":"WebGL läuft, {n} Bilder pro Sekunde","errLib":"Fehler: three.js wurde nicht geladen. Prüfen Sie die Internetverbindung und laden Sie die Seite neu.","errGl":"Fehler: Der Browser unterstützt WebGL nicht oder es ist deaktiviert.","bed":"Druckbett","bedTip":"Schieberegler: 50 bis 600 mm. Feld: 50 bis 1000 mm, Genauigkeit 0,1 mm.","width":"Breite","length":"Länge","slider":"Schieberegler","tempTitle":"Temperatur, °C","tempTip":"Düse: 150 bis 300 °C. Druckbett: 0 bis 120 °C (0 = ohne Heizung).","nozzle":"Düse","firstLayer":"Temperatur der ersten Schicht","firstLayerShort":"erste Schicht","add":"Objekt hinzufügen","cube":"Würfel","sphere":"Kugel","cylinder":"Zylinder","torus":"Torus","plate":"Platte","open":"Datei öffnen…","iObject":"Objekt","iSize":"Größe","iPos":"Position","iRot":"Drehung","iScale":"Skalierung","iTool":"Werkzeug","iAxes":"Achsen","rotate":"Drehen","scale":"Skalieren","delete":"Löschen","move":"Verschieben","none":"keins","notSel":"nicht ausgewählt (gesamt: {n})","outside":"ragt über das Druckbett hinaus","total":"Objekte gesamt: {n}","mm":"mm","hintTouch":"Ein Finger: Ansicht drehen, auf einem Objekt: verschieben. Zwei Finger: zoomen und schwenken.","hintMouse":"Klick auf ein Objekt: auswählen, ziehen: verschieben (mit Umschalt im 10-mm-Raster). Ausgewähltes Objekt: R drehen, S skalieren (mit Umschalt in Schritten), Strg+C, Strg+V, Entf. Linke Maustaste auf freier Fläche: Ansicht drehen, rechte Maustaste: schwenken, Mausrad: zoomen. Eine Modelldatei kann ins Fenster gezogen werden.","drop":"Datei loslassen, um das Modell auf das Druckbett zu legen","language":"Sprache","tLoading":"Wird geladen: {f}…","tLoaded":"{f}: geladen, {t} Dreiecke, {s} mm.","tTiny":"Das Modell ist sehr klein: Es wurde möglicherweise in Metern gespeichert. Mit S vergrößern.","tBig":"Das Modell ist größer als das Druckbett: mit S verkleinern oder das Druckbett vergrößern.","tNoSurf":"Die Datei enthält keine druckbaren Flächen.","tBadCoords":"Die Datei enthält fehlerhafte Eckpunktkoordinaten.","tReadFail":"Datei konnte nicht gelesen werden ({e}).","tFormatErr":"Formatfehler","tDiskFail":"Datei konnte nicht vom Datenträger gelesen werden.","tUnsupported":"Format wird nicht unterstützt. Unterstützt: {list}.","mBlend":"Blender-Dateien (.blend) kann ein Browser nicht lesen. In Blender: Datei → Exportieren → STL, OBJ oder glTF (.glb).","mStep":"STEP/IGES wird in der Webversion noch nicht unterstützt. Exportieren Sie das Modell aus Ihrem CAD-Programm als STL oder 3MF.","mCad":"Das ist das eigene Format eines CAD-Programms; andere Programme können es nicht öffnen. Exportieren Sie das Modell als STL oder 3MF.","mGcode":"Das ist bereits geslicter G-Code für einen Drucker, kein Modell.","mArchive":"Das ist ein Archiv. Entpacken Sie es und ziehen Sie die Modelldatei hinein.","eGltf":"glTF-Fehler. Wenn die .gltf-Datei auf separate Dateien verweist, speichern Sie das Modell als .glb","eDraco":"Das Modell ist komprimiert (Draco oder meshopt), das wird noch nicht unterstützt. Speichern Sie das Modell ohne Komprimierung","e3mf":"Die Datei ist beschädigt oder keine 3MF-Datei","eUnknown":"unbekanntes Format"},"fr":{"langName":"Français","title":"Espace 3D","vIso":"Isométrique","vTop":"Dessus","vFront":"Face","vSide":"Côté","vObject":"Vers l’objet","loading":"Chargement…","fps":"WebGL fonctionne, {n} images par seconde","errLib":"Erreur : la bibliothèque three.js ne s’est pas chargée. Vérifiez la connexion Internet et rechargez la page.","errGl":"Erreur : le navigateur ne prend pas en charge WebGL ou il est désactivé.","bed":"Plateau","bedTip":"Curseur : de 50 à 600 mm. Champ : de 50 à 1000 mm, précision 0,1 mm.","width":"Largeur","length":"Longueur","slider":"curseur","tempTitle":"Température, °C","tempTip":"Buse : de 150 à 300 °C. Plateau : de 0 à 120 °C (0 = sans chauffage).","nozzle":"Buse","firstLayer":"Température de la première couche","firstLayerShort":"première couche","add":"Ajouter un objet","cube":"Cube","sphere":"Sphère","cylinder":"Cylindre","torus":"Tore","plate":"Plaque","open":"Ouvrir un fichier…","iObject":"Objet","iSize":"Taille","iPos":"Position","iRot":"Rotation","iScale":"Échelle","iTool":"Outil","iAxes":"Axes","rotate":"Rotation","scale":"Échelle","delete":"Supprimer","move":"Déplacement","none":"aucun","notSel":"non sélectionné (total : {n})","outside":"dépasse du plateau","total":"objets au total : {n}","mm":"mm","hintTouch":"Un doigt : faire pivoter la vue, sur un objet : le déplacer. Deux doigts : zoom et panoramique.","hintMouse":"Clic sur un objet : sélection, glisser : déplacement (avec Maj : sur la grille de 10 mm). Objet sélectionné : R rotation, S échelle (avec Maj : par pas), Ctrl+C, Ctrl+V, Suppr. Bouton gauche de la souris sur une zone vide : faire pivoter la vue, bouton droit : panoramique, molette : zoom. Vous pouvez glisser un fichier de modèle dans la fenêtre.","drop":"Relâchez le fichier pour ajouter le modèle sur le plateau","language":"Langue","fileMsg":"{f} : {m}","tLoading":"Chargement : {f}…","tLoaded":"{f} : chargé, {t} triangles, {s} mm.","tTiny":"Le modèle est très petit : il a peut-être été enregistré en mètres. Agrandissez-le avec S.","tBig":"Le modèle est plus grand que le plateau : réduisez-le avec S ou agrandissez le plateau.","tNoSurf":"le fichier ne contient aucune surface imprimable.","tBadCoords":"le fichier contient des coordonnées de sommets invalides.","tReadFail":"impossible de lire le fichier ({e}).","tFormatErr":"erreur de format","tDiskFail":"impossible de lire le fichier depuis le disque.","tUnsupported":"format non pris en charge. Formats pris en charge : {list}.","mBlend":"Un navigateur ne peut pas lire les fichiers Blender (.blend). Dans Blender : File → Export → STL, OBJ ou glTF (.glb).","mStep":"Le format STEP/IGES n’est pas encore pris en charge dans la version web. Exportez le modèle depuis votre logiciel de CAO en STL ou 3MF.","mCad":"C’est le format propre d’un logiciel de CAO ; les autres programmes ne peuvent pas l’ouvrir. Exportez le modèle en STL ou 3MF.","mGcode":"C’est déjà du G-code tranché pour une imprimante, pas un modèle.","mArchive":"C’est une archive. Décompressez-la et faites glisser le fichier du modèle.","eGltf":"erreur glTF. Si le fichier .gltf fait référence à des fichiers séparés, enregistrez le modèle au format .glb","eDraco":"le modèle est compressé (Draco ou meshopt), cette compression n’est pas encore prise en charge. Enregistrez le modèle sans compression","e3mf":"le fichier est endommagé ou n’est pas un 3MF","eUnknown":"format inconnu"},"es":{"langName":"Español","title":"Espacio 3D","vIso":"Isométrica","vTop":"Superior","vFront":"Frontal","vSide":"Lateral","vObject":"Ir al objeto","loading":"Cargando…","fps":"WebGL funciona, {n} fotogramas por segundo","errLib":"Error: no se cargó la biblioteca three.js. Compruebe la conexión a internet y recargue la página.","errGl":"Error: el navegador no admite WebGL o está desactivado.","bed":"Cama","bedTip":"Control deslizante: de 50 a 600 mm. Campo: de 50 a 1000 mm, precisión 0,1 mm.","width":"Ancho","length":"Largo","slider":"control deslizante","tempTitle":"Temperatura, °C","tempTip":"Boquilla: de 150 a 300 °C. Cama: de 0 a 120 °C (0 = sin calentar).","nozzle":"Boquilla","firstLayer":"Temperatura de la primera capa","firstLayerShort":"primera capa","add":"Añadir objeto","cube":"Cubo","sphere":"Esfera","cylinder":"Cilindro","torus":"Toro","plate":"Placa","open":"Abrir archivo…","iObject":"Objeto","iSize":"Tamaño","iPos":"Posición","iRot":"Rotación","iScale":"Escala","iTool":"Herramienta","iAxes":"Ejes","rotate":"Rotar","scale":"Escalar","delete":"Eliminar","move":"Mover","none":"ninguno","notSel":"no seleccionado (total: {n})","outside":"se sale de la cama","total":"objetos en total: {n}","mm":"mm","hintTouch":"Un dedo: girar la vista; sobre un objeto: moverlo. Dos dedos: zoom y desplazamiento.","hintMouse":"Clic en un objeto: seleccionar; arrastrar: mover (con Mayús, en la cuadrícula de 10 mm). Objeto seleccionado: R rotar, S escalar (con Mayús, por pasos), Ctrl+C, Ctrl+V, Supr. Botón izquierdo del ratón en un espacio vacío: girar la vista; botón derecho: desplazar; rueda: zoom. Puede arrastrar un archivo de modelo a la ventana.","drop":"Suelte el archivo para añadir el modelo a la cama","language":"Idioma","tLoading":"Cargando: {f}…","tLoaded":"{f}: cargado, {t} triángulos, {s} mm.","tTiny":"El modelo es muy pequeño: puede que se haya guardado en metros. Agrándelo con S.","tBig":"El modelo es más grande que la cama: redúzcalo con S o agrande la cama.","tNoSurf":"el archivo no contiene superficies imprimibles.","tBadCoords":"el archivo contiene coordenadas de vértices no válidas.","tReadFail":"no se pudo leer el archivo ({e}).","tFormatErr":"error de formato","tDiskFail":"no se pudo leer el archivo del disco.","tUnsupported":"formato no compatible. Compatibles: {list}.","mBlend":"Un navegador no puede leer archivos de Blender (.blend). En Blender: File → Export → STL, OBJ o glTF (.glb).","mStep":"STEP/IGES aún no es compatible con la versión web. Exporte el modelo desde su programa CAD a STL o 3MF.","mCad":"Es el formato propio de un programa CAD; otros programas no pueden abrirlo. Exporte el modelo a STL o 3MF.","mGcode":"Esto ya es G-code laminado para una impresora, no un modelo.","mArchive":"Es un archivo comprimido. Descomprímalo y arrastre el archivo del modelo.","eGltf":"error de glTF. Si el archivo .gltf hace referencia a archivos separados, guarde el modelo como .glb","eDraco":"el modelo está comprimido (Draco o meshopt); esa compresión aún no es compatible. Guarde el modelo sin compresión","e3mf":"el archivo está dañado o no es 3MF","eUnknown":"formato desconocido"},"pt":{"langName":"Português","title":"Espaço 3D","vIso":"Isométrica","vTop":"Superior","vFront":"Frontal","vSide":"Lateral","vObject":"Ir ao objeto","loading":"Carregando…","fps":"WebGL funcionando, {n} quadros por segundo","errLib":"Erro: a biblioteca three.js não carregou. Verifique a conexão com a internet e recarregue a página.","errGl":"Erro: o navegador não suporta WebGL ou ele está desativado.","bed":"Mesa","bedTip":"Controle deslizante: de 50 a 600 mm. Campo: de 50 a 1000 mm, precisão de 0,1 mm.","width":"Largura","length":"Comprimento","slider":"controle deslizante","tempTitle":"Temperatura, °C","tempTip":"Bico: de 150 a 300 °C. Mesa: de 0 a 120 °C (0 = sem aquecimento).","nozzle":"Bico","firstLayer":"Temperatura da primeira camada","firstLayerShort":"primeira camada","add":"Adicionar objeto","cube":"Cubo","sphere":"Esfera","cylinder":"Cilindro","torus":"Toro","plate":"Placa","open":"Abrir arquivo…","iObject":"Objeto","iSize":"Tamanho","iPos":"Posição","iRot":"Rotação","iScale":"Escala","iTool":"Ferramenta","iAxes":"Eixos","rotate":"Girar","scale":"Escalar","delete":"Excluir","move":"Mover","none":"nenhum","notSel":"não selecionado (total: {n})","outside":"ultrapassa a mesa","total":"total de objetos: {n}","mm":"mm","hintTouch":"Um dedo: girar a vista; sobre um objeto: movê-lo. Dois dedos: zoom e deslocamento.","hintMouse":"Clique em um objeto: selecionar; arraste: mover (com Shift, na grade de 10 mm). Objeto selecionado: R girar, S escalar (com Shift, em passos), Ctrl+C, Ctrl+V, Delete. Botão esquerdo do mouse em área vazia: girar a vista; botão direito: deslocar; roda do mouse: zoom. Você pode arrastar um arquivo de modelo para a janela.","drop":"Solte o arquivo para adicionar o modelo à mesa","language":"Idioma","tLoading":"Carregando: {f}…","tLoaded":"{f}: carregado, {t} triângulos, {s} mm.","tTiny":"O modelo é muito pequeno: talvez tenha sido salvo em metros. Aumente-o com S.","tBig":"O modelo é maior que a mesa: reduza-o com S ou aumente a mesa.","tNoSurf":"o arquivo não contém superfícies imprimíveis.","tBadCoords":"o arquivo contém coordenadas de vértices inválidas.","tReadFail":"não foi possível ler o arquivo ({e}).","tFormatErr":"erro de formato","tDiskFail":"não foi possível ler o arquivo do disco.","tUnsupported":"formato não suportado. Suportados: {list}.","mBlend":"Arquivos do Blender (.blend) não podem ser lidos no navegador. No Blender: File → Export → STL, OBJ ou glTF (.glb).","mStep":"STEP/IGES ainda não é suportado na versão web. Exporte o modelo do seu programa CAD para STL ou 3MF.","mCad":"Este é o formato próprio de um programa CAD; outros programas não o abrem. Exporte o modelo para STL ou 3MF.","mGcode":"Isto já é G-code fatiado para uma impressora, não um modelo.","mArchive":"Este é um arquivo compactado. Descompacte-o e arraste o arquivo do modelo.","eGltf":"erro de glTF. Se o arquivo .gltf faz referência a arquivos separados, salve o modelo como .glb","eDraco":"o modelo está compactado (Draco ou meshopt); essa compactação ainda não é suportada. Salve o modelo sem compactação","e3mf":"o arquivo está danificado ou não é 3MF","eUnknown":"formato desconhecido"},"it":{"langName":"Italiano","title":"Spazio 3D","vIso":"Isometrica","vTop":"Dall’alto","vFront":"Frontale","vSide":"Laterale","vObject":"All’oggetto","loading":"Caricamento…","fps":"WebGL funziona, {n} fotogrammi al secondo","errLib":"Errore: la libreria three.js non è stata caricata. Controlla la connessione a Internet e ricarica la pagina.","errGl":"Errore: il browser non supporta WebGL oppure è disattivato.","bed":"Piatto","bedTip":"Cursore: da 50 a 600 mm. Campo: da 50 a 1000 mm, precisione 0,1 mm.","width":"Larghezza","length":"Lunghezza","slider":"cursore","tempTitle":"Temperatura, °C","tempTip":"Ugello: da 150 a 300 °C. Piatto: da 0 a 120 °C (0 = senza riscaldamento).","nozzle":"Ugello","firstLayer":"Temperatura del primo strato","firstLayerShort":"primo strato","add":"Aggiungi oggetto","cube":"Cubo","sphere":"Sfera","cylinder":"Cilindro","torus":"Toro","plate":"Piastra","open":"Apri file…","iObject":"Oggetto","iSize":"Dimensioni","iPos":"Posizione","iRot":"Rotazione","iScale":"Scala","iTool":"Strumento","iAxes":"Assi","rotate":"Ruota","scale":"Scala","delete":"Elimina","move":"Sposta","none":"nessuno","notSel":"non selezionato (totale: {n})","outside":"esce dal piatto","total":"oggetti totali: {n}","mm":"mm","hintTouch":"Un dito: ruota la vista; su un oggetto: spostalo. Due dita: zoom e panoramica.","hintMouse":"Clic su un oggetto: selezione; trascina: sposta (con Maiusc, sulla griglia da 10 mm). Oggetto selezionato: R ruota, S scala (con Maiusc, a passi), Ctrl+C, Ctrl+V, Canc. Tasto sinistro del mouse su uno spazio vuoto: ruota la vista; tasto destro: panoramica; rotellina: zoom. Puoi trascinare un file di modello nella finestra.","drop":"Rilascia il file per aggiungere il modello al piatto","language":"Lingua","tLoading":"Caricamento: {f}…","tLoaded":"{f}: caricato, {t} triangoli, {s} mm.","tTiny":"Il modello è molto piccolo: forse è stato salvato in metri. Ingrandiscilo con S.","tBig":"Il modello è più grande del piatto: riducilo con S o ingrandisci il piatto.","tNoSurf":"il file non contiene superfici stampabili.","tBadCoords":"il file contiene coordinate dei vertici non valide.","tReadFail":"impossibile leggere il file ({e}).","tFormatErr":"errore di formato","tDiskFail":"impossibile leggere il file dal disco.","tUnsupported":"formato non supportato. Supportati: {list}.","mBlend":"Il browser non può leggere i file di Blender (.blend). In Blender: File → Export → STL, OBJ o glTF (.glb).","mStep":"STEP/IGES non è ancora supportato nella versione web. Esporta il modello dal programma CAD in STL o 3MF.","mCad":"È il formato proprietario di un programma CAD; gli altri programmi non possono aprirlo. Esporta il modello in STL o 3MF.","mGcode":"Questo è già G-code per la stampante, non un modello.","mArchive":"Questo è un archivio. Estrailo e trascina il file del modello.","eGltf":"errore glTF. Se il file .gltf rimanda a file separati, salva il modello come .glb","eDraco":"il modello è compresso (Draco o meshopt), questa compressione non è ancora supportata. Salva il modello senza compressione","e3mf":"il file è danneggiato o non è un 3MF","eUnknown":"formato sconosciuto"},"pl":{"langName":"Polski","title":"Przestrzeń 3D","vIso":"Izometria","vTop":"Z góry","vFront":"Z przodu","vSide":"Z boku","vObject":"Do obiektu","loading":"Ładowanie…","fps":"WebGL działa, {n} klatek na sekundę","errLib":"Błąd: nie załadowano biblioteki three.js. Sprawdź połączenie z internetem i odśwież stronę.","errGl":"Błąd: przeglądarka nie obsługuje WebGL lub jest on wyłączony.","bed":"Stół","bedTip":"Suwak: od 50 do 600 mm. Pole: od 50 do 1000 mm, dokładność 0,1 mm.","width":"Szerokość","length":"Długość","slider":"suwak","tempTitle":"Temperatura, °C","tempTip":"Dysza: od 150 do 300 °C. Stół: od 0 do 120 °C (0 — bez grzania).","nozzle":"Dysza","firstLayer":"Temperatura pierwszej warstwy","firstLayerShort":"pierwsza warstwa","add":"Dodaj obiekt","cube":"Sześcian","sphere":"Kula","cylinder":"Walec","torus":"Torus","plate":"Płytka","open":"Otwórz plik…","iObject":"Obiekt","iSize":"Rozmiar","iPos":"Położenie","iRot":"Obrót","iScale":"Skala","iTool":"Narzędzie","iAxes":"Osie","rotate":"Obrót","scale":"Skala","delete":"Usuń","move":"Przesuwanie","none":"brak","notSel":"nie wybrano (razem: {n})","outside":"wychodzi poza stół","total":"razem obiektów: {n}","mm":"mm","hintTouch":"Jeden palec — obracanie widoku, na obiekcie — przesuwanie. Dwa palce — powiększanie i przesuwanie widoku.","hintMouse":"Kliknięcie obiektu — zaznaczenie, przeciąganie — przesuwanie (z klawiszem Shift — po siatce 10 mm). Zaznaczony obiekt: R — obrót, S — skala (z klawiszem Shift — skokowo), Ctrl+C, Ctrl+V, Delete. Lewy przycisk myszy na pustym miejscu — obracanie widoku, prawy przycisk myszy — przesuwanie widoku, kółko myszy — powiększanie. Plik modelu można przeciągnąć do okna.","drop":"Upuść plik, aby dodać model na stół","language":"Język","tLoading":"Ładowanie: {f}…","tLoaded":"{f}: załadowano, trójkątów: {t}, {s} mm.","tTiny":"Model jest bardzo mały: być może zapisano go w metrach. Powiększ go klawiszem S.","tBig":"Model jest większy niż stół: zmniejsz go klawiszem S lub powiększ stół.","tNoSurf":"plik nie zawiera powierzchni do druku.","tBadCoords":"plik zawiera błędne współrzędne wierzchołków.","tReadFail":"nie udało się odczytać pliku ({e}).","tFormatErr":"błąd formatu","tDiskFail":"nie udało się odczytać pliku z dysku.","tUnsupported":"format nie jest obsługiwany. Obsługiwane: {list}.","mBlend":"Przeglądarka nie odczyta plików Blendera (.blend). W Blenderze: File → Export → STL, OBJ lub glTF (.glb).","mStep":"Format STEP/IGES nie jest jeszcze obsługiwany w wersji internetowej. Wyeksportuj model z programu CAD do STL lub 3MF.","mCad":"To własny format programu CAD; inne programy go nie otworzą. Wyeksportuj model do STL lub 3MF.","mGcode":"To już pocięty G-code dla drukarki, a nie model.","mArchive":"To archiwum. Rozpakuj je i przeciągnij plik modelu.","eGltf":"błąd glTF. Jeśli plik .gltf odwołuje się do osobnych plików, zapisz model jako .glb","eDraco":"model jest skompresowany (Draco lub meshopt), taka kompresja nie jest jeszcze obsługiwana. Zapisz model bez kompresji","e3mf":"plik jest uszkodzony lub nie jest plikiem 3MF","eUnknown":"nieznany format"},"nl":{"langName":"Nederlands","title":"3D-werkruimte","vIso":"Isometrisch","vTop":"Boven","vFront":"Voor","vSide":"Zij","vObject":"Naar object","loading":"Laden…","fps":"WebGL werkt, {n} beelden per seconde","errLib":"Fout: de bibliotheek three.js is niet geladen. Controleer de internetverbinding en vernieuw de pagina.","errGl":"Fout: de browser ondersteunt WebGL niet of het staat uit.","bed":"Printbed","bedTip":"Schuifregelaar: 50 tot 600 mm. Veld: 50 tot 1000 mm, nauwkeurigheid 0,1 mm.","width":"Breedte","length":"Lengte","slider":"schuifregelaar","tempTitle":"Temperatuur, °C","tempTip":"Nozzle: 150 tot 300 °C. Printbed: 0 tot 120 °C (0 = niet verwarmd).","nozzle":"Nozzle","firstLayer":"Temperatuur eerste laag","firstLayerShort":"eerste laag","add":"Object toevoegen","cube":"Kubus","sphere":"Bol","cylinder":"Cilinder","torus":"Torus","plate":"Plaat","open":"Bestand openen…","iObject":"Object","iSize":"Afmetingen","iPos":"Positie","iRot":"Rotatie","iScale":"Schaal","iTool":"Gereedschap","iAxes":"Assen","rotate":"Draaien","scale":"Schalen","delete":"Verwijderen","move":"Verplaatsen","none":"geen","notSel":"niet geselecteerd (totaal: {n})","outside":"steekt buiten het printbed","total":"objecten totaal: {n}","mm":"mm","hintTouch":"Eén vinger: weergave draaien, op een object: verplaatsen. Twee vingers: zoomen en schuiven.","hintMouse":"Klik op een object: selecteren, slepen: verplaatsen (met Shift op het raster van 10 mm). Geselecteerd object: R draaien, S schalen (met Shift in stappen), Ctrl+C, Ctrl+V, Delete. Linkermuisknop op een lege plek: weergave draaien, rechtermuisknop: schuiven, muiswiel: zoomen. U kunt een modelbestand naar het venster slepen.","drop":"Laat het bestand los om het model op het printbed te plaatsen","language":"Taal","tLoading":"Laden: {f}…","tLoaded":"{f}: geladen, {t} driehoeken, {s} mm.","tTiny":"Het model is erg klein: mogelijk is het in meters opgeslagen. Vergroot het met S.","tBig":"Het model is groter dan het printbed: verklein het met S of vergroot het printbed.","tNoSurf":"het bestand bevat geen printbare oppervlakken.","tBadCoords":"het bestand bevat ongeldige hoekpuntcoördinaten.","tReadFail":"het bestand kon niet worden gelezen ({e}).","tFormatErr":"formaatfout","tDiskFail":"het bestand kon niet van de schijf worden gelezen.","tUnsupported":"formaat niet ondersteund. Ondersteund: {list}.","mBlend":"Blender-bestanden (.blend) kunnen niet in een browser worden gelezen. In Blender: File → Export → STL, OBJ of glTF (.glb).","mStep":"STEP/IGES wordt in de webversie nog niet ondersteund. Exporteer het model vanuit uw CAD-programma naar STL of 3MF.","mCad":"Dit is het eigen formaat van een CAD-programma; andere programma's kunnen het niet openen. Exporteer het model naar STL of 3MF.","mGcode":"Dit is al gesliced G-code voor een printer, geen model.","mArchive":"Dit is een archief. Pak het uit en sleep het modelbestand hierheen.","eGltf":"glTF-fout. Als het .gltf-bestand naar losse bestanden verwijst, sla het model op als .glb","eDraco":"het model is gecomprimeerd (Draco of meshopt); die compressie wordt nog niet ondersteund. Sla het model op zonder compressie","e3mf":"het bestand is beschadigd of geen 3MF","eUnknown":"onbekend formaat"},"zh":{"langName":"中文（简体）","title":"3D 工作区","vIso":"等轴测","vTop":"顶视","vFront":"前视","vSide":"侧视","vObject":"聚焦对象","loading":"加载中…","fps":"WebGL 运行正常，每秒 {n} 帧","errLib":"错误：three.js 库未能加载。请检查网络连接并刷新页面。","errGl":"错误：浏览器不支持 WebGL 或已将其禁用。","bed":"打印平台","bedTip":"滑块：50 至 600 毫米。输入框：50 至 1000 毫米，精度 0.1 毫米。","width":"宽度","length":"长度","slider":"滑块","tempTitle":"温度，°C","tempTip":"喷嘴：150 至 300 °C。热床：0 至 120 °C（0 表示不加热）。","nozzle":"喷嘴","firstLayer":"首层温度","firstLayerShort":"首层","add":"添加对象","cube":"立方体","sphere":"球体","cylinder":"圆柱体","torus":"圆环","plate":"平板","open":"打开文件…","iObject":"对象","iSize":"尺寸","iPos":"位置","iRot":"旋转","iScale":"缩放","iTool":"工具","iAxes":"坐标轴","rotate":"旋转","scale":"缩放","delete":"删除","move":"移动","none":"无","notSel":"未选择（共 {n} 个）","outside":"超出打印平台","total":"对象总数：{n}","mm":"毫米","hintTouch":"单指：旋转视图；在对象上：移动对象。双指：缩放和平移。","hintMouse":"单击对象：选择；拖动：移动（按住 Shift：按 10 毫米网格对齐）。选中的对象：R 旋转，S 缩放（按住 Shift：分步），Ctrl+C，Ctrl+V，Delete。在空白处按鼠标左键：旋转视图；鼠标右键：平移；鼠标滚轮：缩放。可以将模型文件拖入窗口。","drop":"松开文件即可将模型添加到打印平台","language":"语言","fileMsg":"{f}：{m}","tLoading":"正在加载：{f}…","tLoaded":"{f}：已加载，{t} 个三角形，{s} 毫米。","tTiny":"模型非常小：可能是以米为单位保存的。请按 S 放大。","tBig":"模型比打印平台大：请按 S 缩小，或增大打印平台尺寸。","tNoSurf":"文件中没有可打印的表面。","tBadCoords":"文件中的顶点坐标无效。","tReadFail":"无法读取文件（{e}）。","tFormatErr":"格式错误","tDiskFail":"无法从磁盘读取文件。","tUnsupported":"不支持该格式。支持的格式：{list}。","mBlend":"浏览器无法读取 Blender 文件（.blend）。在 Blender 中：File → Export → STL、OBJ 或 glTF（.glb）。","mStep":"网页版暂不支持 STEP/IGES 格式。请从 CAD 软件导出为 STL 或 3MF。","mCad":"这是 CAD 软件的专有格式，其他程序无法打开。请将模型导出为 STL 或 3MF。","mGcode":"这是已切片的打印机 G-code，而不是模型。","mArchive":"这是压缩包。请解压后拖入模型文件。","eGltf":"glTF 错误。如果 .gltf 文件引用了单独的文件，请将模型保存为 .glb","eDraco":"模型已压缩（Draco 或 meshopt），暂不支持此类压缩。请保存为未压缩的模型","e3mf":"文件已损坏或不是 3MF 文件","eUnknown":"未知格式"},"ja":{"langName":"日本語","title":"3D ワークスペース","vIso":"等角","vTop":"上面","vFront":"正面","vSide":"側面","vObject":"オブジェクトへ","loading":"読み込み中…","fps":"WebGL 動作中、毎秒 {n} フレーム","errLib":"エラー：three.js ライブラリを読み込めませんでした。インターネット接続を確認し、ページを再読み込みしてください。","errGl":"エラー：ブラウザーが WebGL に対応していないか、無効になっています。","bed":"ベッド","bedTip":"スライダー：50～600 mm。入力欄：50～1000 mm、精度 0.1 mm。","width":"幅","length":"奥行き","slider":"スライダー","tempTitle":"温度（°C）","tempTip":"ノズル：150～300 °C。ベッド：0～120 °C（0 は加熱なし）。","nozzle":"ノズル","firstLayer":"1 層目の温度","firstLayerShort":"1 層目","add":"オブジェクトを追加","cube":"立方体","sphere":"球","cylinder":"円柱","torus":"トーラス","plate":"プレート","open":"ファイルを開く…","iObject":"オブジェクト","iSize":"サイズ","iPos":"位置","iRot":"回転","iScale":"拡大縮小","iTool":"ツール","iAxes":"軸","rotate":"回転","scale":"拡大縮小","delete":"削除","move":"移動","none":"なし","notSel":"未選択（合計：{n}）","outside":"ベッドからはみ出しています","total":"オブジェクト数：{n}","mm":"mm","hintTouch":"1 本指：視点を回転、オブジェクト上では移動。2 本指：ズームとパン。","hintMouse":"オブジェクトをクリック：選択、ドラッグ：移動（Shift キーで 10 mm グリッドにスナップ）。選択中のオブジェクト：R 回転、S 拡大縮小（Shift キーで段階的に）、Ctrl+C、Ctrl+V、Delete。何もない場所でマウスの左ボタン：視点を回転、右ボタン：パン、ホイール：ズーム。モデルファイルをウィンドウにドラッグできます。","drop":"ファイルをドロップしてモデルをベッドに追加","language":"言語","fileMsg":"{f}：{m}","tLoading":"読み込み中：{f}…","tLoaded":"{f}：読み込み完了、三角形 {t} 個、{s} mm。","tTiny":"モデルが非常に小さいです。メートル単位で保存されている可能性があります。S キーで拡大してください。","tBig":"モデルがベッドより大きいです。S キーで縮小するか、ベッドを大きくしてください。","tNoSurf":"印刷可能な面がファイルにありません。","tBadCoords":"ファイルの頂点座標が不正です。","tReadFail":"ファイルを読み込めませんでした（{e}）。","tFormatErr":"形式エラー","tDiskFail":"ディスクからファイルを読み込めませんでした。","tUnsupported":"この形式には対応していません。対応形式：{list}。","mBlend":"Blender ファイル（.blend）はブラウザーでは読み込めません。Blender で File → Export → STL、OBJ、glTF（.glb）を選んでください。","mStep":"STEP/IGES 形式は Web 版ではまだ対応していません。CAD ソフトから STL または 3MF に書き出してください。","mCad":"CAD ソフト独自の形式のため、他のプログラムでは開けません。STL または 3MF に書き出してください。","mGcode":"これはモデルではなく、スライス済みのプリンター用 G-code です。","mArchive":"これはアーカイブです。展開してからモデルファイルをドラッグしてください。","eGltf":"glTF エラー。.gltf ファイルが別ファイルを参照している場合は、.glb として保存してください","eDraco":"モデルが圧縮されています（Draco または meshopt）。この圧縮にはまだ対応していません。圧縮せずに保存してください","e3mf":"ファイルが破損しているか、3MF ではありません","eUnknown":"不明な形式"},"ko":{"langName":"한국어","title":"3D 작업 공간","vIso":"등각","vTop":"위","vFront":"앞","vSide":"옆","vObject":"개체로 이동","loading":"불러오는 중…","fps":"WebGL 작동 중, 초당 {n}프레임","errLib":"오류: three.js 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인하고 페이지를 새로 고치세요.","errGl":"오류: 브라우저가 WebGL을 지원하지 않거나 꺼져 있습니다.","bed":"베드","bedTip":"슬라이더: 50~600mm. 입력란: 50~1000mm, 정밀도 0.1mm.","width":"너비","length":"길이","slider":"슬라이더","tempTitle":"온도, °C","tempTip":"노즐: 150~300°C. 베드: 0~120°C(0은 가열 안 함).","nozzle":"노즐","firstLayer":"첫 레이어 온도","firstLayerShort":"첫 레이어","add":"개체 추가","cube":"정육면체","sphere":"구","cylinder":"원기둥","torus":"토러스","plate":"판","open":"파일 열기…","iObject":"개체","iSize":"크기","iPos":"위치","iRot":"회전","iScale":"배율","iTool":"도구","iAxes":"축","rotate":"회전","scale":"배율","delete":"삭제","move":"이동","none":"없음","notSel":"선택 안 됨(전체: {n})","outside":"베드를 벗어남","total":"전체 개체: {n}","mm":"mm","hintTouch":"한 손가락: 보기 회전, 개체 위에서: 이동. 두 손가락: 확대/축소 및 이동.","hintMouse":"개체 클릭: 선택, 끌기: 이동(Shift 키를 누르면 10mm 격자에 맞춤). 선택한 개체: R 회전, S 배율(Shift 키를 누르면 단계별), Ctrl+C, Ctrl+V, Delete. 빈 곳에서 마우스 왼쪽 버튼: 보기 회전, 오른쪽 버튼: 이동, 휠: 확대/축소. 모델 파일을 창으로 끌어다 놓을 수 있습니다.","drop":"파일을 놓으면 모델이 베드에 추가됩니다","language":"언어","tLoading":"불러오는 중: {f}…","tLoaded":"{f}: 불러옴, 삼각형 {t}개, {s}mm.","tTiny":"모델이 매우 작습니다. 미터 단위로 저장되었을 수 있습니다. S 키로 확대하세요.","tBig":"모델이 베드보다 큽니다. S 키로 축소하거나 베드를 키우세요.","tNoSurf":"파일에 출력할 수 있는 면이 없습니다.","tBadCoords":"파일의 꼭짓점 좌표가 잘못되었습니다.","tReadFail":"파일을 읽지 못했습니다({e}).","tFormatErr":"형식 오류","tDiskFail":"디스크에서 파일을 읽지 못했습니다.","tUnsupported":"지원하지 않는 형식입니다. 지원 형식: {list}.","mBlend":"Blender 파일(.blend)은 브라우저에서 읽을 수 없습니다. Blender에서 File → Export → STL, OBJ 또는 glTF(.glb)를 사용하세요.","mStep":"웹 버전에서는 아직 STEP/IGES 형식을 지원하지 않습니다. CAD 프로그램에서 STL 또는 3MF로 내보내세요.","mCad":"CAD 프로그램 고유 형식이라 다른 프로그램에서는 열 수 없습니다. 모델을 STL 또는 3MF로 내보내세요.","mGcode":"모델이 아니라 이미 슬라이스된 프린터용 G-code입니다.","mArchive":"압축 파일입니다. 압축을 풀고 모델 파일을 끌어다 놓으세요.","eGltf":"glTF 오류. .gltf 파일이 별도 파일을 참조하는 경우 모델을 .glb로 저장하세요","eDraco":"모델이 압축되어 있습니다(Draco 또는 meshopt). 이 압축은 아직 지원하지 않습니다. 압축 없이 저장하세요","e3mf":"파일이 손상되었거나 3MF가 아닙니다","eUnknown":"알 수 없는 형식"},"ar":{"langName":"العربية","rtl":true,"title":"مساحة عمل ثلاثية الأبعاد","vIso":"متساوي القياس","vTop":"من الأعلى","vFront":"من الأمام","vSide":"من الجانب","vObject":"إلى الكائن","loading":"جارٍ التحميل…","fps":"WebGL يعمل، {n} إطارًا في الثانية","errLib":"خطأ: لم يتم تحميل مكتبة three.js. تحقق من الاتصال بالإنترنت وأعد تحميل الصفحة.","errGl":"خطأ: المتصفح لا يدعم WebGL أو أنه معطّل.","bed":"سرير الطباعة","bedTip":"شريط التمرير: من 50 إلى 600 مم. الحقل: من 50 إلى 1000 مم، بدقة 0.1 مم.","width":"العرض","length":"الطول","slider":"شريط التمرير","tempTitle":"درجة الحرارة، °C","tempTip":"الفوهة: من 150 إلى 300 °C. السرير: من 0 إلى 120 °C (0 = بدون تسخين).","nozzle":"الفوهة","firstLayer":"حرارة الطبقة الأولى","firstLayerShort":"الطبقة الأولى","add":"إضافة كائن","cube":"مكعب","sphere":"كرة","cylinder":"أسطوانة","torus":"حلقة","plate":"لوح","open":"فتح ملف…","iObject":"الكائن","iSize":"الحجم","iPos":"الموضع","iRot":"الدوران","iScale":"المقياس","iTool":"الأداة","iAxes":"المحاور","rotate":"تدوير","scale":"تحجيم","delete":"حذف","move":"تحريك","none":"لا يوجد","notSel":"غير محدد (الإجمالي: {n})","outside":"يتجاوز حدود السرير","total":"إجمالي الكائنات: {n}","mm":"مم","hintTouch":"إصبع واحد: تدوير العرض، وعلى كائن: تحريكه. إصبعان: التكبير والتحريك.","hintMouse":"انقر على كائن لتحديده واسحبه لتحريكه (مع Shift: على شبكة 10 مم). الكائن المحدد: R للتدوير، S للتحجيم (مع Shift: بخطوات)، Ctrl+C، Ctrl+V، Delete. زر الفأرة الأيسر في مكان فارغ: تدوير العرض، الزر الأيمن: التحريك، العجلة: التكبير. يمكنك سحب ملف النموذج إلى النافذة.","drop":"أفلت الملف لإضافة النموذج إلى السرير","language":"اللغة","tLoading":"جارٍ التحميل: {f}…","tLoaded":"{f}: تم التحميل، {t} مثلث، {s} مم.","tTiny":"النموذج صغير جدًا: ربما حُفظ بالأمتار. كبّره باستخدام S.","tBig":"النموذج أكبر من السرير: صغّره باستخدام S أو كبّر السرير.","tNoSurf":"لا يحتوي الملف على أسطح قابلة للطباعة.","tBadCoords":"يحتوي الملف على إحداثيات رؤوس غير صالحة.","tReadFail":"تعذّرت قراءة الملف ({e}).","tFormatErr":"خطأ في التنسيق","tDiskFail":"تعذّرت قراءة الملف من القرص.","tUnsupported":"التنسيق غير مدعوم. التنسيقات المدعومة: {list}.","mBlend":"لا يمكن للمتصفح قراءة ملفات Blender (.blend). في Blender: File → Export → STL أو OBJ أو glTF (.glb).","mStep":"تنسيق STEP/IGES غير مدعوم بعد في إصدار الويب. صدّر النموذج من برنامج CAD إلى STL أو 3MF.","mCad":"هذا تنسيق خاص ببرنامج CAD ولا تفتحه البرامج الأخرى. صدّر النموذج إلى STL أو 3MF.","mGcode":"هذا ملف G-code مقطّع للطابعة وليس نموذجًا.","mArchive":"هذا ملف مضغوط. فك ضغطه ثم اسحب ملف النموذج.","eGltf":"خطأ في glTF. إذا كان ملف .gltf يشير إلى ملفات منفصلة، فاحفظ النموذج بصيغة .glb","eDraco":"النموذج مضغوط (Draco أو meshopt)، وهذا الضغط غير مدعوم بعد. احفظ النموذج دون ضغط","e3mf":"الملف تالف أو ليس بتنسيق 3MF","eUnknown":"تنسيق غير معروف"},"hi":{"langName":"हिन्दी","title":"3D कार्यक्षेत्र","vIso":"आइसोमेट्रिक","vTop":"ऊपर से","vFront":"सामने से","vSide":"बगल से","vObject":"ऑब्जेक्ट पर","loading":"लोड हो रहा है…","fps":"WebGL काम कर रहा है, {n} फ़्रेम प्रति सेकंड","errLib":"त्रुटि: three.js लाइब्रेरी लोड नहीं हुई। इंटरनेट कनेक्शन जाँचें और पेज रीलोड करें।","errGl":"त्रुटि: ब्राउज़र WebGL का समर्थन नहीं करता या यह बंद है।","bed":"बेड","bedTip":"स्लाइडर: 50 से 600 मिमी। फ़ील्ड: 50 से 1000 मिमी, सटीकता 0.1 मिमी।","width":"चौड़ाई","length":"लंबाई","slider":"स्लाइडर","tempTitle":"तापमान, °C","tempTip":"नोज़ल: 150 से 300 °C। बेड: 0 से 120 °C (0 = बिना हीटिंग)।","nozzle":"नोज़ल","firstLayer":"पहली परत का तापमान","firstLayerShort":"पहली परत","add":"ऑब्जेक्ट जोड़ें","cube":"घन","sphere":"गोला","cylinder":"बेलन","torus":"टोरस","plate":"प्लेट","open":"फ़ाइल खोलें…","iObject":"ऑब्जेक्ट","iSize":"आकार","iPos":"स्थिति","iRot":"घुमाव","iScale":"स्केल","iTool":"टूल","iAxes":"अक्ष","rotate":"घुमाएँ","scale":"स्केल करें","delete":"हटाएँ","move":"खिसकाना","none":"कोई नहीं","notSel":"चयनित नहीं (कुल: {n})","outside":"बेड से बाहर है","total":"कुल ऑब्जेक्ट: {n}","mm":"मिमी","hintTouch":"एक उँगली: दृश्य घुमाएँ, ऑब्जेक्ट पर: उसे खिसकाएँ। दो उँगलियाँ: ज़ूम और पैन।","hintMouse":"ऑब्जेक्ट पर क्लिक: चयन, खींचें: खिसकाएँ (Shift के साथ: 10 मिमी ग्रिड पर)। चयनित ऑब्जेक्ट: R घुमाएँ, S स्केल करें (Shift के साथ: चरणों में), Ctrl+C, Ctrl+V, Delete। खाली जगह पर माउस का बायाँ बटन: दृश्य घुमाएँ, दायाँ बटन: पैन, व्हील: ज़ूम। मॉडल फ़ाइल को विंडो में खींचकर ला सकते हैं।","drop":"मॉडल को बेड पर जोड़ने के लिए फ़ाइल छोड़ें","language":"भाषा","tLoading":"लोड हो रहा है: {f}…","tLoaded":"{f}: लोड हो गया, {t} त्रिकोण, {s} मिमी।","tTiny":"मॉडल बहुत छोटा है: शायद इसे मीटर में सहेजा गया है। S से इसे बड़ा करें।","tBig":"मॉडल बेड से बड़ा है: S से इसे छोटा करें या बेड बड़ा करें।","tNoSurf":"फ़ाइल में प्रिंट करने योग्य सतहें नहीं हैं।","tBadCoords":"फ़ाइल में शीर्षों के निर्देशांक गलत हैं।","tReadFail":"फ़ाइल नहीं पढ़ी जा सकी ({e})।","tFormatErr":"फ़ॉर्मैट त्रुटि","tDiskFail":"डिस्क से फ़ाइल नहीं पढ़ी जा सकी।","tUnsupported":"यह फ़ॉर्मैट समर्थित नहीं है। समर्थित: {list}।","mBlend":"ब्राउज़र Blender फ़ाइलें (.blend) नहीं पढ़ सकता। Blender में: File → Export → STL, OBJ या glTF (.glb)।","mStep":"वेब संस्करण में STEP/IGES अभी समर्थित नहीं है। मॉडल को CAD प्रोग्राम से STL या 3MF में एक्सपोर्ट करें।","mCad":"यह CAD प्रोग्राम का अपना फ़ॉर्मैट है, अन्य प्रोग्राम इसे नहीं खोलते। मॉडल को STL या 3MF में एक्सपोर्ट करें।","mGcode":"यह मॉडल नहीं, बल्कि प्रिंटर के लिए पहले से स्लाइस किया गया G-code है।","mArchive":"यह एक आर्काइव है। इसे खोलें और मॉडल फ़ाइल खींचकर लाएँ।","eGltf":"glTF त्रुटि। अगर .gltf फ़ाइल अलग फ़ाइलों से जुड़ी है, तो मॉडल को .glb के रूप में सहेजें","eDraco":"मॉडल संपीड़ित है (Draco या meshopt), यह संपीड़न अभी समर्थित नहीं है। मॉडल को बिना संपीड़न के सहेजें","e3mf":"फ़ाइल खराब है या 3MF नहीं है","eUnknown":"अज्ञात फ़ॉर्मैट"},"id":{"langName":"Bahasa Indonesia","title":"Ruang kerja 3D","vIso":"Isometrik","vTop":"Atas","vFront":"Depan","vSide":"Samping","vObject":"Ke objek","loading":"Memuat…","fps":"WebGL berjalan, {n} bingkai per detik","errLib":"Kesalahan: pustaka three.js gagal dimuat. Periksa koneksi internet lalu muat ulang halaman.","errGl":"Kesalahan: browser tidak mendukung WebGL atau WebGL dinonaktifkan.","bed":"Bed","bedTip":"Penggeser: 50 sampai 600 mm. Kolom: 50 sampai 1000 mm, ketelitian 0,1 mm.","width":"Lebar","length":"Panjang","slider":"penggeser","tempTitle":"Suhu, °C","tempTip":"Nozzle: 150 sampai 300 °C. Bed: 0 sampai 120 °C (0 = tanpa pemanasan).","nozzle":"Nozzle","firstLayer":"Suhu lapisan pertama","firstLayerShort":"lapisan pertama","add":"Tambah objek","cube":"Kubus","sphere":"Bola","cylinder":"Silinder","torus":"Torus","plate":"Pelat","open":"Buka file…","iObject":"Objek","iSize":"Ukuran","iPos":"Posisi","iRot":"Rotasi","iScale":"Skala","iTool":"Alat","iAxes":"Sumbu","rotate":"Putar","scale":"Skala","delete":"Hapus","move":"Pindah","none":"tidak ada","notSel":"tidak dipilih (total: {n})","outside":"melewati batas bed","total":"total objek: {n}","mm":"mm","hintTouch":"Satu jari: putar tampilan, di atas objek: pindahkan. Dua jari: zoom dan geser.","hintMouse":"Klik objek: pilih, seret: pindahkan (dengan Shift: mengikuti grid 10 mm). Objek terpilih: R putar, S skala (dengan Shift: bertahap), Ctrl+C, Ctrl+V, Delete. Tombol kiri mouse di area kosong: putar tampilan, tombol kanan: geser, roda mouse: zoom. File model dapat diseret ke jendela.","drop":"Lepaskan file untuk menambahkan model ke bed","language":"Bahasa","tLoading":"Memuat: {f}…","tLoaded":"{f}: dimuat, {t} segitiga, {s} mm.","tTiny":"Model sangat kecil: mungkin disimpan dalam meter. Perbesar dengan S.","tBig":"Model lebih besar dari bed: perkecil dengan S atau perbesar bed.","tNoSurf":"file tidak berisi permukaan yang dapat dicetak.","tBadCoords":"file berisi koordinat verteks yang tidak valid.","tReadFail":"file tidak dapat dibaca ({e}).","tFormatErr":"kesalahan format","tDiskFail":"file tidak dapat dibaca dari disk.","tUnsupported":"format tidak didukung. Didukung: {list}.","mBlend":"File Blender (.blend) tidak dapat dibaca di browser. Di Blender: File → Export → STL, OBJ, atau glTF (.glb).","mStep":"Format STEP/IGES belum didukung di versi web. Ekspor model dari program CAD ke STL atau 3MF.","mCad":"Ini format khusus program CAD; program lain tidak dapat membukanya. Ekspor model ke STL atau 3MF.","mGcode":"Ini sudah G-code hasil slicing untuk printer, bukan model.","mArchive":"Ini arsip. Ekstrak lalu seret file modelnya.","eGltf":"kesalahan glTF. Jika file .gltf merujuk ke file terpisah, simpan model sebagai .glb","eDraco":"model dikompresi (Draco atau meshopt); kompresi ini belum didukung. Simpan model tanpa kompresi","e3mf":"file rusak atau bukan 3MF","eUnknown":"format tidak dikenal"},"vi":{"langName":"Tiếng Việt","title":"Không gian 3D","vIso":"Đẳng cự","vTop":"Từ trên","vFront":"Phía trước","vSide":"Bên cạnh","vObject":"Đến vật thể","loading":"Đang tải…","fps":"WebGL đang chạy, {n} khung hình/giây","errLib":"Lỗi: không tải được thư viện three.js. Hãy kiểm tra kết nối Internet và tải lại trang.","errGl":"Lỗi: trình duyệt không hỗ trợ WebGL hoặc WebGL đã bị tắt.","bed":"Bàn in","bedTip":"Thanh trượt: 50 đến 600 mm. Ô nhập: 50 đến 1000 mm, độ chính xác 0,1 mm.","width":"Chiều rộng","length":"Chiều dài","slider":"thanh trượt","tempTitle":"Nhiệt độ, °C","tempTip":"Đầu phun: 150 đến 300 °C. Bàn in: 0 đến 120 °C (0 = không gia nhiệt).","nozzle":"Đầu phun","firstLayer":"Nhiệt độ lớp đầu tiên","firstLayerShort":"lớp đầu tiên","add":"Thêm vật thể","cube":"Khối lập phương","sphere":"Khối cầu","cylinder":"Hình trụ","torus":"Hình xuyến","plate":"Tấm","open":"Mở tệp…","iObject":"Vật thể","iSize":"Kích thước","iPos":"Vị trí","iRot":"Xoay","iScale":"Tỉ lệ","iTool":"Công cụ","iAxes":"Trục","rotate":"Xoay","scale":"Tỉ lệ","delete":"Xóa","move":"Di chuyển","none":"không có","notSel":"chưa chọn (tổng: {n})","outside":"vượt ra ngoài bàn in","total":"tổng số vật thể: {n}","mm":"mm","hintTouch":"Một ngón: xoay góc nhìn, trên vật thể: di chuyển. Hai ngón: thu phóng và kéo.","hintMouse":"Nhấp vào vật thể: chọn, kéo: di chuyển (giữ Shift: bám lưới 10 mm). Vật thể đã chọn: R xoay, S tỉ lệ (giữ Shift: theo bước), Ctrl+C, Ctrl+V, Delete. Nút chuột trái ở chỗ trống: xoay góc nhìn, nút phải: kéo, con lăn: thu phóng. Có thể kéo tệp mô hình vào cửa sổ.","drop":"Thả tệp để thêm mô hình lên bàn in","language":"Ngôn ngữ","tLoading":"Đang tải: {f}…","tLoaded":"{f}: đã tải, {t} tam giác, {s} mm.","tTiny":"Mô hình rất nhỏ: có thể đã được lưu theo mét. Hãy phóng to bằng S.","tBig":"Mô hình lớn hơn bàn in: thu nhỏ bằng S hoặc tăng kích thước bàn in.","tNoSurf":"tệp không có bề mặt để in.","tBadCoords":"tệp có tọa độ đỉnh không hợp lệ.","tReadFail":"không đọc được tệp ({e}).","tFormatErr":"lỗi định dạng","tDiskFail":"không đọc được tệp từ ổ đĩa.","tUnsupported":"định dạng không được hỗ trợ. Hỗ trợ: {list}.","mBlend":"Trình duyệt không đọc được tệp Blender (.blend). Trong Blender: File → Export → STL, OBJ hoặc glTF (.glb).","mStep":"Phiên bản web chưa hỗ trợ định dạng STEP/IGES. Hãy xuất mô hình từ phần mềm CAD sang STL hoặc 3MF.","mCad":"Đây là định dạng riêng của phần mềm CAD, các chương trình khác không mở được. Hãy xuất mô hình sang STL hoặc 3MF.","mGcode":"Đây là G-code đã cắt lớp cho máy in, không phải mô hình.","mArchive":"Đây là tệp nén. Hãy giải nén rồi kéo tệp mô hình vào.","eGltf":"lỗi glTF. Nếu tệp .gltf tham chiếu đến các tệp riêng, hãy lưu mô hình dưới dạng .glb","eDraco":"mô hình được nén (Draco hoặc meshopt), kiểu nén này chưa được hỗ trợ. Hãy lưu mô hình không nén","e3mf":"tệp bị hỏng hoặc không phải 3MF","eUnknown":"định dạng không xác định"}};
+(function () {
+  var lang = null;
+  try { var saved = localStorage.getItem("slicer.lang"); if (saved && I18N[saved]) lang = saved; } catch (e) {}
+  if (!lang) {
+    var prefs = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || ""];
+    for (var i = 0; i < prefs.length && !lang; i++) {
+      var code = String(prefs[i]).toLowerCase().split("-")[0];
+      if (I18N[code]) lang = code;
+    }
+  }
+  window.i18n = { lang: lang || "en" };
+})();
+// Перевод строки по ключу с подстановкой {значений}; если перевода нет — английский текст
+function tr(key, vars) {
+  var d = I18N[i18n.lang] || I18N.en;
+  var s = d[key] !== undefined ? d[key] : (I18N.en[key] !== undefined ? I18N.en[key] : key);
+  if (vars) s = s.replace(/\{(\w+)\}/g, function (m, k) { return vars[k] !== undefined ? vars[k] : m; });
+  return s;
+}
+</script>
+<script>
+(function () {
+  "use strict";
+
+  var statusEl = document.getElementById("status");
+  function setStatus(text, cls) {
+    statusEl.textContent = text;
+    statusEl.className = cls || "";
+  }
+
+  // Форматы чисел для выбранного языка (цифры всегда латинские)
+  var numFmt, intFmt;
+  function setNumberFormats() {
+    var loc = i18n.lang + "-u-nu-latn";
+    try {
+      numFmt = new Intl.NumberFormat(loc, { maximumFractionDigits: 2, useGrouping: false });
+      intFmt = new Intl.NumberFormat(loc);
+    } catch (e) {
+      numFmt = intFmt = { format: function (v) { return String(v); } };
+    }
+  }
+  setNumberFormats();
+
+  if (!window.THREE || !THREE.OrbitControls || !THREE.TransformControls) {
+    setStatus(tr("errLib"), "error");
+    return;
+  }
+
+  // Ось Z направлена вверх, как в 3D-принтерах и файлах STL
+  THREE.Object3D.DefaultUp.set(0, 0, 1);
+
+  // Параметры стола и тестового объекта (миллиметры)
+  var BED_DEFAULT = { x: 220, y: 220 };
+  var BED_LIMITS = { min: 50, max: 1000 };
+  var BED = loadBed();
+  var CENTER = new THREE.Vector3(BED.x / 2, BED.y / 2, 0);
+
+  function isValidSize(v) {
+    return typeof v === "number" && isFinite(v) && v >= BED_LIMITS.min && v <= BED_LIMITS.max;
+  }
+  // Размер стола запоминается в этом браузере
+  function loadBed() {
+    try {
+      var saved = JSON.parse(localStorage.getItem("slicer.bed") || "null");
+      if (saved && isValidSize(saved.x) && isValidSize(saved.y)) return { x: saved.x, y: saved.y };
+    } catch (e) {}
+    return { x: BED_DEFAULT.x, y: BED_DEFAULT.y };
+  }
+  function saveBed() {
+    try { localStorage.setItem("slicer.bed", JSON.stringify(BED)); } catch (e) {}
+  }
+
+  var wrap = document.getElementById("viewport");
+  var renderer;
+  try {
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+  } catch (e) {
+    setStatus(tr("errGl"), "error");
+    return;
+  }
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  wrap.insertBefore(renderer.domElement, wrap.firstChild);
+
+  var scene = new THREE.Scene();
+  var camera = new THREE.PerspectiveCamera(40, 1, 0.5, 5000);
+  camera.up.set(0, 0, 1);
+
+  var controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.12;
+  controls.screenSpacePanning = true;
+  controls.minDistance = 10;
+  controls.maxDistance = 4000;
+
+  // Освещение
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x8a94a3, 0.75));
+  var sun = new THREE.DirectionalLight(0xffffff, 0.65);
+  sun.position.set(BED.x * 0.8, -BED.y * 0.4, 300);
+  scene.add(sun);
+  var fill = new THREE.DirectionalLight(0xffffff, 0.25);
+  fill.position.set(-BED.x * 0.5, BED.y * 1.5, 150);
+  scene.add(fill);
+
+  // Стол принтера: координаты от (0, 0) до (BED.x, BED.y), как в G-code
+  var bedMat = new THREE.MeshStandardMaterial({ roughness: 0.85, metalness: 0.05 });
+  var bed = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), bedMat);
+  scene.add(bed);
+
+  // Сетка: тонкие линии каждые 10 мм, толстые каждые 50 мм и по краям стола
+  function gridGeometry(major) {
+    var pts = [];
+    function addX(x) { pts.push(x, 0, 0.02, x, BED.y, 0.02); }
+    function addY(y) { pts.push(0, y, 0.02, BED.x, y, 0.02); }
+    var v;
+    for (v = 0; v < BED.x - 1e-6; v += 10) if ((v % 50 === 0) === major) addX(v);
+    for (v = 0; v < BED.y - 1e-6; v += 10) if ((v % 50 === 0) === major) addY(v);
+    if (major) { addX(BED.x); addY(BED.y); }
+    var g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(pts, 3));
+    return g;
+  }
+  var minorMat = new THREE.LineBasicMaterial();
+  var majorMat = new THREE.LineBasicMaterial();
+  var minorGrid = new THREE.LineSegments(new THREE.BufferGeometry(), minorMat);
+  var majorGrid = new THREE.LineSegments(new THREE.BufferGeometry(), majorMat);
+  scene.add(minorGrid);
+  scene.add(majorGrid);
+
+  // Перестроение стола и сетки под текущий размер
+  function rebuildBed() {
+    bed.scale.set(BED.x, BED.y, 1);
+    bed.position.set(BED.x / 2, BED.y / 2, -0.05);
+    minorGrid.geometry.dispose();
+    minorGrid.geometry = gridGeometry(false);
+    majorGrid.geometry.dispose();
+    majorGrid.geometry = gridGeometry(true);
+    CENTER.set(BED.x / 2, BED.y / 2, 0);
+  }
+  rebuildBed();
+
+  // Оси в начале координат стола
+  var AX = 30;
+  scene.add(new THREE.ArrowHelper(new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 0, 0.05), AX, 0xd64541, 6, 3));
+  scene.add(new THREE.ArrowHelper(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 0.05), AX, 0x2e9e4f, 6, 3));
+  scene.add(new THREE.ArrowHelper(new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 0, 0.05), AX, 0x3a6fd8, 6, 3));
+
+  // Простые объекты: появляются в центре стола и стоят на нём (размеры в мм)
+  // Двусторонний материал: объект виден и выбирается кликом, даже если камера оказалась внутри него
+  // или у модели часть граней развёрнута неправильно
+  var objMat = new THREE.MeshStandardMaterial({ roughness: 0.5, metalness: 0.05, side: THREE.DoubleSide });
+  // Цвет объекта, который выходит за края стола
+  var warnMat = new THREE.MeshStandardMaterial({ roughness: 0.5, metalness: 0.05, side: THREE.DoubleSide });
+  var edgeMat = new THREE.LineBasicMaterial();
+  var objects = [];
+  var active = null; // выделенный объект
+  var SHAPES = {
+    cube:     { make: function () { return new THREE.BoxGeometry(20, 20, 20); } },
+    sphere:   { make: function () { return new THREE.SphereGeometry(10, 48, 32); } },
+    cylinder: { make: function () { return new THREE.CylinderGeometry(10, 10, 20, 64).rotateX(Math.PI / 2); } },
+    torus:    { make: function () { return new THREE.TorusGeometry(15, 5, 32, 96); } },
+    plate:    { make: function () { return new THREE.BoxGeometry(40, 40, 2); } }
+  };
+  // Красный контур выделения: чуть расширенная копия объекта, видна только изнутри (обратные грани).
+  // Толщина пересчитывается каждый кадр от расстояния до камеры, поэтому на экране она постоянная.
+  var hullWidth = { value: 1 };
+  var hullScale = { value: new THREE.Vector3(1, 1, 1) }; // компенсация масштаба объекта, чтобы контур не растягивался
+  var hullMat = new THREE.MeshBasicMaterial({ color: 0xe53935, side: THREE.BackSide });
+  hullMat.onBeforeCompile = function (shader) {
+    shader.uniforms.outlineWidth = hullWidth;
+    shader.uniforms.outlineScale = hullScale;
+    shader.vertexShader = "uniform float outlineWidth;\nuniform vec3 outlineScale;\n" + shader.vertexShader.replace(
+      "#include <begin_vertex>",
+      "#include <begin_vertex>\n  transformed += normal * outlineWidth / outlineScale;"
+    );
+  };
+  // Геометрия контура: вершины склеены, чтобы на углах не было разрывов.
+  // В атрибут normal записывается смещение вершины: на гладкой поверхности это нормаль,
+  // на остром ребре — сумма нормалей соседних граней, чтобы каждая грань сместилась на одинаковую величину.
+  function hullGeometry(geo) {
+    var pos = geo.attributes.position;
+    // Большие модели: упрощённый контур по нормалям самой модели (быстро, но на острых рёбрах возможны разрывы)
+    if (pos.count > 300000) {
+      var fast = new THREE.BufferGeometry();
+      fast.setAttribute("position", pos);
+      fast.setAttribute("normal", geo.attributes.normal);
+      if (geo.index) fast.setIndex(geo.index);
+      return fast;
+    }
+    var map = {}, verts = [], remap = new Array(pos.count), i, j;
+    for (i = 0; i < pos.count; i++) {
+      var x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+      var key = Math.round(x * 1000) + "," + Math.round(y * 1000) + "," + Math.round(z * 1000);
+      if (!(key in map)) { map[key] = verts.length / 3; verts.push(x, y, z); }
+      remap[i] = map[key];
+    }
+    var idx = [];
+    if (geo.index) for (i = 0; i < geo.index.count; i++) idx.push(remap[geo.index.getX(i)]);
+    else for (i = 0; i < pos.count; i++) idx.push(remap[i]);
+
+    var n = verts.length / 3;
+    var clusters = [];
+    for (i = 0; i < n; i++) clusters.push([]);
+    var a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
+    var COS_SHARP = Math.cos(30 * Math.PI / 180);
+    for (i = 0; i < idx.length; i += 3) {
+      a.fromArray(verts, idx[i] * 3);
+      b.fromArray(verts, idx[i + 1] * 3);
+      c.fromArray(verts, idx[i + 2] * 3);
+      var fn = new THREE.Vector3().subVectors(c, b).cross(new THREE.Vector3().subVectors(a, b));
+      if (fn.lengthSq() < 1e-12) continue;
+      fn.normalize();
+      for (var k = 0; k < 3; k++) {
+        var list = clusters[idx[i + k]], found = false;
+        for (j = 0; j < list.length; j++) {
+          if (list[j].clone().normalize().dot(fn) > COS_SHARP) { list[j].add(fn); found = true; break; }
+        }
+        if (!found) list.push(fn.clone());
+      }
+    }
+    var disp = new Float32Array(n * 3);
+    for (i = 0; i < n; i++) {
+      var d = new THREE.Vector3();
+      clusters[i].forEach(function (v) { d.add(v.clone().normalize()); });
+      disp[i * 3] = d.x; disp[i * 3 + 1] = d.y; disp[i * 3 + 2] = d.z;
+    }
+    var g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(verts, 3));
+    g.setAttribute("normal", new THREE.BufferAttribute(disp, 3));
+    g.setIndex(idx);
+    return g;
+  }
+
+  function select(obj) {
+    if (active) active.userData.hull.visible = false;
+    active = obj || null;
+    if (active) active.userData.hull.visible = true;
+    document.getElementById("obj-actions").hidden = !active;
+    // Инструмент поворота или масштаба переходит на новый выделенный объект; без выделения — выключается
+    if (tc) { if (active && tool) tc.attach(active); else setTool(null); }
+    updateInfo();
+  }
+
+  function addObject(type, x, y) {
+    var shape = SHAPES[type];
+    if (!shape) return null;
+    return addMesh(shape.make(), null, x, y, type);
+  }
+
+  // Добавление любой геометрии на стол: простой фигуры, загруженной модели или копии
+  function addMesh(geo, name, x, y, nameKey) {
+    // Сдвиг геометрии: центр объекта в начале координат, вокруг него идут поворот и масштаб
+    geo.computeBoundingBox();
+    var bb = geo.boundingBox;
+    geo.translate(-(bb.min.x + bb.max.x) / 2, -(bb.min.y + bb.max.y) / 2, -(bb.min.z + bb.max.z) / 2);
+    geo.computeBoundingBox();
+    var triangles = Math.floor((geo.index ? geo.index.count : geo.attributes.position.count) / 3);
+    var mesh = new THREE.Mesh(geo, objMat);
+    // Рёбра рисуются только у не слишком больших моделей, чтобы не замедлять загрузку
+    if (triangles <= 300000) mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo, 30), edgeMat));
+    var hull = new THREE.Mesh(hullGeometry(geo), hullMat);
+    hull.visible = false;
+    mesh.add(hull);
+    mesh.userData.hull = hull;
+    mesh.userData.triangles = triangles;
+    mesh.userData.name = name;
+    mesh.userData.nameKey = nameKey || null; // у простых фигур имя переводится при смене языка
+    mesh.position.set(x === undefined ? CENTER.x : x, y === undefined ? CENTER.y : y, 0);
+    settle(mesh);
+    updateCameraRange(mesh);
+    scene.add(mesh);
+    objects.push(mesh);
+    select(mesh);
+    return mesh;
+  }
+
+  function removeObject(obj) {
+    var i = objects.indexOf(obj);
+    if (i < 0) return;
+    objects.splice(i, 1);
+    scene.remove(obj);
+    obj.traverse(function (o) { if (o.geometry) o.geometry.dispose(); });
+    if (active === obj) select(null); else updateInfo();
+    updateCameraRange();
+  }
+
+  // Точные габариты объекта с учётом поворота и масштаба (по всем вершинам)
+  var _v = new THREE.Vector3();
+  // Габариты запоминаются до следующего поворота или масштаба: при перемещении пересчёт не нужен
+  function worldBox(obj) {
+    obj.updateMatrixWorld(true);
+    var key = obj.quaternion.toArray().join(",") + "|" + obj.scale.toArray().join(",");
+    var cache = obj.userData.boxCache;
+    if (!cache || cache.key !== key) {
+      var box = new THREE.Box3();
+      var pos = obj.geometry.attributes.position;
+      for (var i = 0; i < pos.count; i++) box.expandByPoint(_v.fromBufferAttribute(pos, i).applyMatrix4(obj.matrixWorld));
+      box.min.sub(obj.position);
+      box.max.sub(obj.position);
+      cache = obj.userData.boxCache = { key: key, rel: box };
+    }
+    return cache.rel.clone().translate(obj.position);
+  }
+  // Объект опускается на стол (нижняя точка на высоте 0) и не выходит за края стола
+  function settle(obj) {
+    var box = worldBox(obj);
+    var cx = (box.min.x + box.max.x) / 2, cy = (box.min.y + box.max.y) / 2;
+    var nx = clampAxis(cx, (box.max.x - box.min.x) / 2, BED.x);
+    var ny = clampAxis(cy, (box.max.y - box.min.y) / 2, BED.y);
+    obj.position.x += nx - cx;
+    obj.position.y += ny - cy;
+    obj.position.z -= box.min.z;
+    updateFit(obj);
+  }
+  // Проверка, помещается ли объект на стол; если нет — он окрашивается предупреждающим цветом
+  function updateFit(obj) {
+    var b = worldBox(obj), eps = 0.01;
+    var outside = b.min.x < -eps || b.min.y < -eps || b.max.x > BED.x + eps || b.max.y > BED.y + eps;
+    obj.userData.outside = outside;
+    obj.material = outside ? warnMat : objMat;
+  }
+  // Дальность камеры подстраивается под самый большой объект, чтобы он не обрезался
+  function updateCameraRange() {
+    var ext = Math.max(BED.x, BED.y);
+    objects.forEach(function (o) {
+      var s = worldBox(o).getSize(new THREE.Vector3());
+      ext = Math.max(ext, s.x, s.y, s.z);
+    });
+    camera.far = Math.max(5000, ext * 10);
+    camera.near = Math.max(0.5, camera.far / 20000);
+    camera.updateProjectionMatrix();
+    controls.maxDistance = Math.max(4000, ext * 6);
+  }
+
+  // Информационная панель
+  function fmt(n) {
+    var v = Math.round(n * 100) / 100;
+    if (v === 0) v = 0; // без «-0»
+    return numFmt.format(v);
+  }
+  function objName(o) { return o.userData.nameKey ? tr(o.userData.nameKey) : o.userData.name; }
+  function updateInfo() {
+    document.getElementById("bed-size").textContent = fmt(BED.x) + " × " + fmt(BED.y) + " " + tr("mm");
+    var last = active;
+    if (!last) {
+      document.getElementById("obj-name").textContent = objects.length ? tr("notSel", { n: objects.length }) : tr("none");
+      document.getElementById("obj-size").textContent = "—";
+      document.getElementById("obj-pos").textContent = "—";
+      document.getElementById("obj-rot").textContent = "—";
+      document.getElementById("obj-scale").textContent = "—";
+      return;
+    }
+    var box = worldBox(last);
+    var s = box.getSize(new THREE.Vector3());
+    document.getElementById("obj-name").textContent = objName(last) +
+      (last.userData.outside ? " — " + tr("outside") : "") +
+      (objects.length > 1 ? " (" + tr("total", { n: objects.length }) + ")" : "");
+    document.getElementById("obj-size").textContent = fmt(s.x) + " × " + fmt(s.y) + " × " + fmt(s.z) + " " + tr("mm");
+    document.getElementById("obj-pos").textContent = "X " + fmt(box.min.x) + ", Y " + fmt(box.min.y) + ", Z " + fmt(box.min.z);
+    var eu = new THREE.Euler().setFromQuaternion(last.quaternion, "XYZ");
+    function deg(r) { return fmt(Math.round(THREE.MathUtils.radToDeg(r) * 10) / 10) + "°"; }
+    function pct(v) { return fmt(Math.round(v * 1000) / 10); }
+    document.getElementById("obj-rot").textContent = "X " + deg(eu.x) + ", Y " + deg(eu.y) + ", Z " + deg(eu.z);
+    document.getElementById("obj-scale").textContent = pct(last.scale.x) + " × " + pct(last.scale.y) + " × " + pct(last.scale.z) + " %";
+  }
+  updateInfo();
+
+  // Размер стола: ползунки и поля точного ввода
+  function parseNum(s) {
+    var v = parseFloat(String(s).replace(",", "."));
+    return isFinite(v) ? Math.round(v * 10) / 10 : NaN;
+  }
+  function setBed(axis, v) {
+    if (BED[axis] === v) return;
+    BED[axis] = v;
+    var oldX = CENTER.x, oldY = CENTER.y;
+    rebuildBed();
+    // Объекты смещаются вместе с центром стола
+    var dx = CENTER.x - oldX, dy = CENTER.y - oldY;
+    objects.forEach(function (o) { o.position.x += dx; o.position.y += dy; updateFit(o); });
+    updateInfo();
+    saveBed();
+  }
+  function bindAxis(axis) {
+    var range = document.getElementById("bed-" + axis + "-range");
+    var num = document.getElementById("bed-" + axis + "-num");
+    function rangeValue(v) { return String(Math.min(Math.max(v, Number(range.min)), Number(range.max))); }
+    function show(v) {
+      range.value = rangeValue(v);
+      num.value = String(v);
+      num.classList.remove("invalid");
+    }
+    show(BED[axis]);
+    range.addEventListener("input", function () {
+      var v = Number(range.value);
+      num.value = String(v);
+      num.classList.remove("invalid");
+      setBed(axis, v);
+    });
+    num.addEventListener("input", function () {
+      var v = parseNum(num.value);
+      if (isValidSize(v)) {
+        num.classList.remove("invalid");
+        range.value = rangeValue(v);
+        setBed(axis, v);
+      } else {
+        num.classList.add("invalid");
+      }
+    });
+    num.addEventListener("change", function () {
+      var v = parseNum(num.value);
+      if (!isFinite(v)) v = BED[axis];
+      v = Math.min(Math.max(v, BED_LIMITS.min), BED_LIMITS.max);
+      show(v);
+      setBed(axis, v);
+    });
+  }
+  bindAxis("x");
+  bindAxis("y");
+  if (window.innerWidth < 640) document.getElementById("bed-panel").removeAttribute("open");
+
+  // Температуры сопла и стола, отдельно для первого слоя (°C, сохраняются в этом браузере).
+  // Значения по умолчанию типичны для PLA. Будут использованы при создании G-code.
+  var TEMP_LIMITS = { nozzle: [150, 300], bed: [0, 120], nozzle1: [150, 300], bed1: [0, 120] };
+  var TEMPS = { nozzle: 210, bed: 60, nozzle1: 215, bed1: 65 };
+  try {
+    var savedTemps = JSON.parse(localStorage.getItem("slicer.temps") || "null");
+    if (savedTemps) Object.keys(TEMPS).forEach(function (k) {
+      var v = savedTemps[k];
+      if (typeof v === "number" && v >= TEMP_LIMITS[k][0] && v <= TEMP_LIMITS[k][1]) TEMPS[k] = v;
+    });
+  } catch (e) {}
+  function saveTemps() {
+    try { localStorage.setItem("slicer.temps", JSON.stringify(TEMPS)); } catch (e) {}
+  }
+  function bindTemp(key) {
+    var range = document.getElementById("t-" + key + "-range");
+    var num = document.getElementById("t-" + key + "-num");
+    var lim = TEMP_LIMITS[key];
+    function parseTemp(s) { return Math.round(parseFloat(String(s).replace(",", "."))); }
+    function setTemp(v) {
+      TEMPS[key] = v;
+      range.value = String(v);
+      num.classList.remove("invalid");
+      saveTemps();
+    }
+    range.value = num.value = String(TEMPS[key]);
+    range.addEventListener("input", function () {
+      num.value = range.value;
+      setTemp(Number(range.value));
+    });
+    num.addEventListener("input", function () {
+      var v = parseTemp(num.value);
+      if (isFinite(v) && v >= lim[0] && v <= lim[1]) setTemp(v);
+      else num.classList.add("invalid");
+    });
+    num.addEventListener("change", function () {
+      var v = parseTemp(num.value);
+      if (!isFinite(v)) v = TEMPS[key];
+      v = Math.min(Math.max(v, lim[0]), lim[1]);
+      num.value = String(v);
+      setTemp(v);
+    });
+  }
+  ["nozzle", "bed", "nozzle1", "bed1"].forEach(bindTemp);
+  if (window.innerWidth < 640) document.getElementById("temp-panel").removeAttribute("open");
+
+  // Меню «Добавить объект»
+  var addPanel = document.getElementById("add-panel");
+  var addToggle = document.getElementById("add-toggle");
+  var addMenu = document.getElementById("add-menu");
+  function setMenu(open) {
+    addMenu.hidden = !open;
+    addToggle.setAttribute("aria-expanded", open ? "true" : "false");
+  }
+  addToggle.addEventListener("click", function () { setMenu(addMenu.hidden); });
+  Array.prototype.forEach.call(addMenu.querySelectorAll("[data-shape]"), function (b) {
+    b.addEventListener("click", function () {
+      addObject(b.getAttribute("data-shape"));
+      setMenu(false);
+    });
+  });
+  document.addEventListener("click", function (e) {
+    if (!addMenu.hidden && !addPanel.contains(e.target)) setMenu(false);
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && !addMenu.hidden) { setMenu(false); addToggle.focus(); }
+  });
+
+  // Загрузка моделей из файлов: перетаскивание в окно или пункт «Открыть файл…»
+  var toastEl = document.getElementById("toast");
+  var toastTimer = null;
+  function toast(text, isError) {
+    toastEl.textContent = text;
+    toastEl.className = "overlay" + (isError ? " error" : "");
+    toastEl.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toastEl.hidden = true; }, isError ? 12000 : 7000);
+  }
+
+  var SUPPORTED_LIST = "STL, OBJ, FBX, 3MF, PLY, GLB, glTF, AMF";
+  var LOADABLE = { stl: 1, obj: 1, fbx: 1, "3mf": 1, ply: 1, glb: 1, gltf: 1, amf: 1 };
+  // Форматы с осью Y вверх: модель поворачивается, чтобы верх модели смотрел вверх (ось Z)
+  var Y_UP = { obj: 1, fbx: 1, glb: 1, gltf: 1 };
+  // Неподдерживаемые форматы: ключ сообщения с подсказкой, что делать
+  var NOT_SUPPORTED = {
+    blend: "mBlend", step: "mStep", stp: "mStep", iges: "mStep", igs: "mStep",
+    sldprt: "mCad", sldasm: "mCad", ipt: "mCad", iam: "mCad", f3d: "mCad", f3z: "mCad",
+    m3d: "mCad", a3d: "mCad", catpart: "mCad", catproduct: "mCad", prt: "mCad", asm: "mCad",
+    x_t: "mCad", x_b: "mCad", sat: "mCad", skp: "mCad", "3dm": "mCad", dwg: "mCad", dxf: "mCad",
+    gcode: "mGcode", zip: "mArchive", rar: "mArchive", "7z": "mArchive"
+  };
+  function fileExt(name) { var m = /\.([^.]+)$/.exec(name); return m ? m[1].toLowerCase() : ""; }
+  function readFile(file) {
+    if (file.arrayBuffer) return file.arrayBuffer();
+    return new Promise(function (resolve, reject) {
+      var r = new FileReader();
+      r.onload = function () { resolve(r.result); };
+      r.onerror = function () { reject(r.error); };
+      r.readAsArrayBuffer(file);
+    });
+  }
+  // glTF/GLB: цвета и текстуры не нужны, а их загрузка в защищённой странице может сорвать чтение всей модели.
+  // Поэтому материалы, текстуры и изображения удаляются из файла до разбора.
+  function stripGltf(buf) {
+    var bytes = new Uint8Array(buf);
+    var isGlb = bytes.length >= 12 && bytes[0] === 0x67 && bytes[1] === 0x6C && bytes[2] === 0x54 && bytes[3] === 0x46;
+    var json, bin = null, dv = new DataView(buf);
+    if (isGlb) {
+      var jsonLen = dv.getUint32(12, true);
+      json = JSON.parse(new TextDecoder().decode(bytes.subarray(20, 20 + jsonLen)));
+      var off = 20 + jsonLen;
+      if (off + 8 <= bytes.length) {
+        var binLen = dv.getUint32(off, true);
+        bin = bytes.subarray(off + 8, off + 8 + binLen);
+      }
+    } else {
+      json = JSON.parse(new TextDecoder().decode(bytes));
+    }
+    var required = json.extensionsRequired || [];
+    if (required.indexOf("KHR_draco_mesh_compression") >= 0 || required.indexOf("EXT_meshopt_compression") >= 0) {
+      throw new Error(tr("eDraco"));
+    }
+    delete json.materials; delete json.textures; delete json.images; delete json.samplers;
+    (json.meshes || []).forEach(function (m) { (m.primitives || []).forEach(function (p) { delete p.material; }); });
+    json.extensionsRequired = required.filter(function (e) { return e.indexOf("texture") < 0 && e.indexOf("materials") < 0; });
+    if (!json.extensionsRequired.length) delete json.extensionsRequired;
+    var text = JSON.stringify(json);
+    if (!isGlb) return text;
+    var enc = new TextEncoder().encode(text);
+    var jsonPad = (4 - (enc.length % 4)) % 4;
+    var binPad = bin ? (4 - (bin.length % 4)) % 4 : 0;
+    var total = 12 + 8 + enc.length + jsonPad + (bin ? 8 + bin.length + binPad : 0);
+    var outBuf = new ArrayBuffer(total), out = new Uint8Array(outBuf), w = new DataView(outBuf);
+    w.setUint32(0, 0x46546C67, true); w.setUint32(4, 2, true); w.setUint32(8, total, true);
+    w.setUint32(12, enc.length + jsonPad, true); w.setUint32(16, 0x4E4F534A, true);
+    out.set(enc, 20);
+    for (var i = 0; i < jsonPad; i++) out[20 + enc.length + i] = 0x20;
+    if (bin) {
+      var o = 20 + enc.length + jsonPad;
+      w.setUint32(o, bin.length + binPad, true); w.setUint32(o + 4, 0x004E4942, true);
+      out.set(bin, o + 8);
+    }
+    return outBuf;
+  }
+  function parseModel(ext, buf, done, fail) {
+    try {
+      switch (ext) {
+        case "stl": done(new THREE.Mesh(new THREE.STLLoader().parse(buf))); break;
+        case "ply": done(new THREE.Mesh(new THREE.PLYLoader().parse(buf))); break;
+        case "obj": done(new THREE.OBJLoader().parse(new TextDecoder().decode(buf))); break;
+        case "fbx": done(new THREE.FBXLoader().parse(buf, "")); break;
+        case "amf": done(new THREE.AMFLoader().parse(buf)); break;
+        case "3mf": {
+          var g = new THREE.ThreeMFLoader().parse(buf);
+          if (!g) throw new Error(tr("e3mf"));
+          done(g);
+          break;
+        }
+        case "glb": case "gltf":
+          new THREE.GLTFLoader().parse(stripGltf(buf), "", function (gl) { done(gl.scene); }, function (err) {
+            fail(new Error((err && err.message) || tr("eGltf")));
+          });
+          break;
+        default: fail(new Error(tr("eUnknown")));
+      }
+    } catch (err) { fail(err); }
+  }
+  // Все сетки файла объединяются в одну геометрию с учётом их положения; цвета и текстуры не нужны
+  function toGeometry(root, yUp) {
+    var holder = new THREE.Group();
+    holder.add(root);
+    if (yUp) holder.rotation.x = Math.PI / 2;
+    holder.updateMatrixWorld(true);
+    var parts = [], total = 0;
+    root.traverse(function (o) {
+      if (!o.isMesh || !o.geometry || !o.geometry.attributes || !o.geometry.attributes.position) return;
+      var p = o.geometry.attributes.position, idx = o.geometry.index;
+      var n = idx ? idx.count : p.count;
+      n -= n % 3;
+      var flip = o.matrixWorld.determinant() < 0; // зеркальные части: восстанавливаем порядок вершин
+      var a = new Float32Array(n * 3);
+      for (var i = 0; i < n; i++) {
+        var k = idx ? idx.getX(i) : i;
+        var j = flip && i % 3 ? (i % 3 === 1 ? i + 1 : i - 1) : i;
+        _v.fromBufferAttribute(p, k).applyMatrix4(o.matrixWorld);
+        a[j * 3] = _v.x; a[j * 3 + 1] = _v.y; a[j * 3 + 2] = _v.z;
+      }
+      parts.push(a);
+      total += a.length;
+    });
+    if (!total) return null;
+    var all = new Float32Array(total), off = 0;
+    parts.forEach(function (a) { all.set(a, off); off += a.length; });
+    var geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(all, 3));
+    geo.computeVertexNormals();
+    return geo;
+  }
+  function importFile(file) {
+    var ext = fileExt(file.name);
+    if (NOT_SUPPORTED[ext]) { toast(tr("fileMsg", { f: file.name, m: tr(NOT_SUPPORTED[ext]) }), true); return Promise.resolve(); }
+    if (!LOADABLE[ext]) {
+      toast(tr("fileMsg", { f: file.name, m: tr("tUnsupported", { list: SUPPORTED_LIST }) }), true);
+      return Promise.resolve();
+    }
+    toast(tr("tLoading", { f: file.name }));
+    return readFile(file).then(function (buf) {
+      return new Promise(function (resolve) {
+        // Пауза, чтобы сообщение «Загрузка» успело появиться до тяжёлого разбора файла
+        setTimeout(function () {
+          parseModel(ext, buf, function (root) {
+            var geo = root ? toGeometry(root, !!Y_UP[ext]) : null;
+            if (!geo) { toast(tr("fileMsg", { f: file.name, m: tr("tNoSurf") }), true); resolve(); return; }
+            geo.computeBoundingBox();
+            var b = geo.boundingBox;
+            if (!isFinite(b.min.x + b.min.y + b.min.z + b.max.x + b.max.y + b.max.z)) {
+              toast(tr("fileMsg", { f: file.name, m: tr("tBadCoords") }), true);
+              resolve();
+              return;
+            }
+            var mesh = addMesh(geo, file.name.replace(/\.[^.]+$/, ""));
+            var s = worldBox(mesh).getSize(new THREE.Vector3());
+            var msg = tr("tLoaded", { f: file.name, t: intFmt.format(mesh.userData.triangles), s: fmt(s.x) + " × " + fmt(s.y) + " × " + fmt(s.z) });
+            if (Math.max(s.x, s.y, s.z) < 2) msg += " " + tr("tTiny");
+            else if (s.x > BED.x || s.y > BED.y) msg += " " + tr("tBig");
+            // Крупная модель может не поместиться в кадр: камера отъезжает, чтобы показать её целиком
+            if (s.x > BED.x || s.y > BED.y || s.z > Math.max(BED.x, BED.y)) goTo("object");
+            toast(msg, false);
+            resolve();
+          }, function (err) {
+            toast(tr("fileMsg", { f: file.name, m: tr("tReadFail", { e: (err && err.message) || tr("tFormatErr") }) }), true);
+            resolve();
+          });
+        }, 30);
+      });
+    }).catch(function () {
+      toast(tr("fileMsg", { f: file.name, m: tr("tDiskFail") }), true);
+    });
+  }
+  function importFiles(list) {
+    Array.prototype.slice.call(list).reduce(function (p, f) {
+      return p.then(function () { return importFile(f); });
+    }, Promise.resolve());
+  }
+
+  var fileInput = document.getElementById("file-input");
+  document.getElementById("open-file").addEventListener("click", function () {
+    setMenu(false);
+    fileInput.click();
+  });
+  fileInput.addEventListener("change", function () {
+    if (fileInput.files.length) { window.focus(); importFiles(fileInput.files); }
+    fileInput.value = "";
+  });
+
+  // Перетаскивание файлов в окно страницы
+  var dropZone = document.getElementById("drop-zone");
+  var dragDepth = 0;
+  function hasFiles(e) {
+    var t = e.dataTransfer && e.dataTransfer.types;
+    return !!t && Array.prototype.indexOf.call(t, "Files") >= 0;
+  }
+  window.addEventListener("dragenter", function (e) {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    dragDepth++;
+    dropZone.hidden = false;
+  });
+  window.addEventListener("dragover", function (e) {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+  });
+  window.addEventListener("dragleave", function (e) {
+    if (!hasFiles(e)) return;
+    dragDepth = Math.max(0, dragDepth - 1);
+    if (!dragDepth) dropZone.hidden = true;
+  });
+  window.addEventListener("drop", function (e) {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    dragDepth = 0;
+    dropZone.hidden = true;
+    // После перетаскивания файла клавиатура может оставаться у другого окна: возвращаем её странице
+    window.focus();
+    importFiles(e.dataTransfer.files);
+  });
+
+  // Перетаскивание объектов по столу; с зажатой клавишей Shift — по сетке
+  var GRID_STEP = 10;
+  var canvas = renderer.domElement;
+  var raycaster = new THREE.Raycaster();
+  var pointer = new THREE.Vector2();
+  var drag = null;
+  var emptyDown = null; // нажатие на пустое место: клик без движения снимает выделение
+
+  function setPointer(x, y) {
+    var r = canvas.getBoundingClientRect();
+    pointer.set(((x - r.left) / r.width) * 2 - 1, -((y - r.top) / r.height) * 2 + 1);
+    raycaster.setFromCamera(pointer, camera);
+  }
+  function pickObject(e) {
+    setPointer(e.clientX, e.clientY);
+    var hits = raycaster.intersectObjects(objects, false);
+    return hits.length ? hits[0] : null;
+  }
+  // Объект не выходит за края стола
+  // Объект, который помещается на стол, не выходит за его края.
+  // Объект больше стола двигается свободно, но его центр остаётся над столом, чтобы объект не потерялся.
+  function clampAxis(v, half, size) {
+    if (2 * half > size) return Math.min(Math.max(v, 0), size);
+    return Math.min(Math.max(v, half), size - half);
+  }
+  function moveDrag() {
+    if (!drag) return;
+    setPointer(drag.x, drag.y);
+    var p = raycaster.ray.intersectPlane(drag.plane, new THREE.Vector3());
+    if (!p) return;
+    var x = p.x + drag.offset.x;
+    var y = p.y + drag.offset.y;
+    if (drag.shift) {
+      x = Math.round(x / GRID_STEP) * GRID_STEP;
+      y = Math.round(y / GRID_STEP) * GRID_STEP;
+    }
+    drag.obj.position.x = clampAxis(x, drag.half.x, BED.x);
+    drag.obj.position.y = clampAxis(y, drag.half.y, BED.y);
+    updateFit(drag.obj);
+    updateInfo();
+  }
+
+  // Перехват нажатия до управления камерой: если попали в объект, камера не вращается
+  wrap.addEventListener("pointerdown", function (e) {
+    if (e.target !== canvas || drag || !e.isPrimary) return;
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    // Нажатие на ось инструмента поворота или масштаба обрабатывает сам инструмент
+    if (tc.object) {
+      setPointer(e.clientX, e.clientY);
+      tc.pointerHover({ x: pointer.x, y: pointer.y, button: e.button });
+      if (tc.axis) { controls.enabled = false; return; }
+    }
+    var hit = pickObject(e);
+    if (!hit) {
+      emptyDown = { id: e.pointerId, x: e.clientX, y: e.clientY };
+      return;
+    }
+    var obj = hit.object;
+    var size = worldBox(obj).getSize(new THREE.Vector3());
+    drag = {
+      obj: obj,
+      pointerId: e.pointerId,
+      plane: new THREE.Plane(new THREE.Vector3(0, 0, 1), -hit.point.z),
+      offset: { x: obj.position.x - hit.point.x, y: obj.position.y - hit.point.y },
+      half: { x: size.x / 2, y: size.y / 2 },
+      shift: e.shiftKey,
+      x: e.clientX,
+      y: e.clientY
+    };
+    select(obj);
+    anim = null;
+    controls.enabled = false;
+    try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
+    canvas.style.cursor = "grabbing";
+    updateInfo();
+    e.preventDefault();
+  }, true);
+
+  canvas.addEventListener("pointermove", function (e) {
+    if (drag) {
+      if (e.pointerId !== drag.pointerId) return;
+      drag.x = e.clientX;
+      drag.y = e.clientY;
+      drag.shift = e.shiftKey;
+      moveDrag();
+      return;
+    }
+    if (e.pointerType === "mouse" && e.buttons === 0) {
+      if (tc.object) {
+        setPointer(e.clientX, e.clientY);
+        tc.pointerHover({ x: pointer.x, y: pointer.y, button: -1 });
+        if (tc.axis) { canvas.style.cursor = "pointer"; return; }
+      }
+      canvas.style.cursor = pickObject(e) ? "grab" : "";
+    }
+  });
+  function endDrag(e) {
+    if (!drag || e.pointerId !== drag.pointerId) return;
+    try { canvas.releasePointerCapture(e.pointerId); } catch (err) {}
+    drag = null;
+    controls.enabled = true;
+    canvas.style.cursor = e.pointerType === "mouse" ? "grab" : "";
+  }
+  canvas.addEventListener("pointerup", endDrag);
+  canvas.addEventListener("pointercancel", endDrag);
+  // Shift нажат или отпущен без движения мыши — пересчёт положения сразу
+  window.addEventListener("keydown", function (e) {
+    if (e.key === "Shift" && drag && !drag.shift) { drag.shift = true; moveDrag(); }
+  });
+  window.addEventListener("keyup", function (e) {
+    if (e.key === "Shift" && drag && drag.shift) { drag.shift = false; moveDrag(); }
+  });
+  canvas.addEventListener("pointerup", function (e) {
+    if (!emptyDown || e.pointerId !== emptyDown.id) return;
+    if (Math.abs(e.clientX - emptyDown.x) + Math.abs(e.clientY - emptyDown.y) < 6) select(null);
+    emptyDown = null;
+  });
+
+  // Инструменты поворота (R) и масштаба (S): три оси вокруг выделенного объекта
+  var tool = null;
+  var tc = new THREE.TransformControls(camera, canvas);
+  scene.add(tc);
+  // Оставляем только три оси X, Y, Z: внешнее кольцо, свободное вращение и плоскостные рукоятки скрыты
+  var tcGizmo = tc._gizmo;
+  var gizmoUpdate = tcGizmo.updateMatrixWorld;
+  tcGizmo.updateMatrixWorld = function (force) {
+    gizmoUpdate.call(this, force);
+    var mode = this.mode;
+    [this.picker[mode], this.gizmo[mode]].forEach(function (group) {
+      group.children.forEach(function (h) {
+        if (h.name !== "X" && h.name !== "Y" && h.name !== "Z") h.visible = false;
+      });
+    });
+  };
+  function updateToolLabel() {
+    document.getElementById("tool").textContent =
+      tool === "rotate" ? tr("rotate") + " (R)" : tool === "scale" ? tr("scale") + " (S)" : tr("move");
+  }
+  function setTool(mode) {
+    tool = mode && active ? mode : null;
+    if (tool) {
+      tc.setMode(tool);
+      tc.setSpace(tool === "scale" ? "local" : "world");
+      tc.attach(active);
+    } else {
+      tc.detach();
+    }
+    updateToolLabel();
+    Array.prototype.forEach.call(document.querySelectorAll("[data-tool]"), function (b) {
+      b.setAttribute("aria-pressed", b.getAttribute("data-tool") === tool ? "true" : "false");
+    });
+  }
+  tc.addEventListener("dragging-changed", function (e) { controls.enabled = !e.value; });
+  tc.addEventListener("objectChange", function () {
+    var o = tc.object;
+    if (!o) return;
+    // Запрет нулевого и отрицательного масштаба (не меньше 5 %)
+    o.scale.set(Math.max(o.scale.x, 0.05), Math.max(o.scale.y, 0.05), Math.max(o.scale.z, 0.05));
+    settle(o);
+    updateCameraRange();
+    updateInfo();
+  });
+  // С зажатой клавишей Shift: поворот шагами 15°, масштаб шагами 10 %
+  function setSnap(on) {
+    tc.setRotationSnap(on ? THREE.MathUtils.degToRad(15) : null);
+    tc.setScaleSnap(on ? 0.1 : null);
+  }
+  window.addEventListener("keydown", function (e) { if (e.key === "Shift") setSnap(true); });
+  window.addEventListener("keyup", function (e) { if (e.key === "Shift") setSnap(false); });
+  window.addEventListener("blur", function () { setSnap(false); });
+  // Страховка: управление камерой всегда возвращается после отпускания кнопки
+  window.addEventListener("pointerup", function () { if (!drag && !tc.dragging) controls.enabled = true; });
+
+  // Кнопки в панели информации: работают без клавиатуры (телефон, клавиатура у другого окна)
+  Array.prototype.forEach.call(document.querySelectorAll("[data-tool]"), function (b) {
+    b.addEventListener("click", function () {
+      var m = b.getAttribute("data-tool");
+      setTool(tool === m ? null : m);
+    });
+  });
+  document.getElementById("obj-delete").addEventListener("click", function () {
+    if (active) removeObject(active);
+  });
+
+  // Клавиши для выделенного объекта: R, S, Escape, Ctrl+C, Ctrl+V, Delete.
+  // Клавиши определяются по физическому положению, поэтому работают и в русской раскладке.
+  var clipboard = null;
+  var PASTE_OFFSET = 10;
+  window.addEventListener("keydown", function (e) {
+    var t = e.target;
+    if (t && (t.tagName === "INPUT" || t.tagName === "SELECT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+    if (drag || tc.dragging) return;
+    var mod = e.ctrlKey || e.metaKey;
+    if (!mod && !e.altKey && (e.code === "KeyR" || e.code === "KeyS")) {
+      if (!active) return;
+      var mode = e.code === "KeyR" ? "rotate" : "scale";
+      setTool(tool === mode ? null : mode); // повторное нажатие выключает инструмент
+      e.preventDefault();
+    } else if (e.key === "Escape" && tool) {
+      setTool(null);
+    } else if (mod && e.code === "KeyC") {
+      if (!active) return;
+      clipboard = {
+        geo: active.geometry, name: active.userData.name, nameKey: active.userData.nameKey,
+        x: active.position.x, y: active.position.y,
+        quaternion: active.quaternion.clone(), scale: active.scale.clone()
+      };
+      e.preventDefault();
+    } else if (mod && e.code === "KeyV") {
+      if (!clipboard) return;
+      var copy = addMesh(clipboard.geo.clone(), clipboard.name, clipboard.x + PASTE_OFFSET, clipboard.y + PASTE_OFFSET, clipboard.nameKey);
+      if (copy) {
+        copy.quaternion.copy(clipboard.quaternion);
+        copy.scale.copy(clipboard.scale);
+        settle(copy);
+        updateInfo();
+        clipboard.x = copy.position.x;
+        clipboard.y = copy.position.y;
+      }
+      e.preventDefault();
+    } else if ((e.key === "Delete" || e.key === "Backspace") && active) {
+      removeObject(active);
+      e.preventDefault();
+    }
+  });
+
+  // Подсказка по управлению
+  var coarse = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
+  function updateHint() {
+    document.getElementById("hint").textContent = tr(coarse ? "hintTouch" : "hintMouse");
+  }
+
+  // Цвета из темы оформления
+  function cssColor(name) {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  }
+  function applyTheme() {
+    scene.background = new THREE.Color(cssColor("--scene-bg"));
+    bedMat.color.set(cssColor("--bed"));
+    minorMat.color.set(cssColor("--grid-minor"));
+    majorMat.color.set(cssColor("--grid-major"));
+    objMat.color.set(cssColor("--cube"));
+    warnMat.color.set(cssColor("--warn"));
+    edgeMat.color.set(cssColor("--edge"));
+  }
+  applyTheme();
+  if (window.matchMedia) {
+    var mq = window.matchMedia("(prefers-color-scheme: dark)");
+    if (mq.addEventListener) mq.addEventListener("change", applyTheme);
+    else if (mq.addListener) mq.addListener(applyTheme);
+  }
+  new MutationObserver(applyTheme).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+  // Виды камеры
+  function viewFor(name) {
+    var D = Math.max(BED.x, BED.y) * 1.55;
+    var c = CENTER.clone();
+    switch (name) {
+      case "top":   return { pos: new THREE.Vector3(c.x, c.y - 0.01, D * 1.1), target: c };
+      case "front": return { pos: new THREE.Vector3(c.x, c.y - D, 20), target: new THREE.Vector3(c.x, c.y, 20) };
+      case "side":  return { pos: new THREE.Vector3(c.x + D, c.y, 20), target: new THREE.Vector3(c.x, c.y, 20) };
+      case "object": {
+        // Активный объект (последний добавленный или перемещённый); если объектов нет — изометрия
+        var last = active;
+        if (!last) return viewFor("iso");
+        var ob = worldBox(last);
+        var t = ob.getCenter(new THREE.Vector3());
+        var r = Math.max(ob.getSize(new THREE.Vector3()).length() / 2, 5);
+        return { pos: t.clone().add(new THREE.Vector3(-1.8 * r, -3 * r, 2.3 * r)), target: t };
+      }
+      default:      return { pos: new THREE.Vector3(c.x - D * 0.45, c.y - D * 0.75, D * 0.6), target: c };
+    }
+  }
+
+  var anim = null;
+  var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function goTo(name) {
+    var v = viewFor(name);
+    if (reduceMotion) {
+      camera.position.copy(v.pos);
+      controls.target.copy(v.target);
+      controls.update();
+      return;
+    }
+    anim = {
+      fromPos: camera.position.clone(), toPos: v.pos,
+      fromTarget: controls.target.clone(), toTarget: v.target,
+      start: performance.now(), dur: 450
+    };
+  }
+  var startView = viewFor("iso");
+  camera.position.copy(startView.pos);
+  controls.target.copy(startView.target);
+  controls.update();
+
+  Array.prototype.forEach.call(document.querySelectorAll("[data-view]"), function (b) {
+    b.addEventListener("click", function () { goTo(b.getAttribute("data-view")); });
+  });
+
+  // Размер области просмотра
+  function resize() {
+    var w = wrap.clientWidth, h = wrap.clientHeight;
+    if (!w || !h) return;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+  if (window.ResizeObserver) new ResizeObserver(resize).observe(wrap);
+  window.addEventListener("resize", resize);
+  resize();
+
+  // Цикл отрисовки и счётчик кадров
+  var frames = 0, lastFps = performance.now();
+  function ease(t) { return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; }
+  function loop(now) {
+    requestAnimationFrame(loop);
+    if (anim) {
+      var k = Math.min(1, (now - anim.start) / anim.dur);
+      var e = ease(k);
+      camera.position.lerpVectors(anim.fromPos, anim.toPos, e);
+      controls.target.lerpVectors(anim.fromTarget, anim.toTarget, e);
+      if (k >= 1) anim = null;
+    }
+    controls.update();
+    if (active) {
+      hullWidth.value = camera.position.distanceTo(active.position) * 0.0035;
+      hullScale.value.copy(active.scale);
+    }
+    renderer.render(scene, camera);
+
+    frames++;
+    if (now - lastFps >= 1000) {
+      var fps = Math.round(frames * 1000 / (now - lastFps));
+      setStatus(tr("fps", { n: fps }), "ok");
+      frames = 0;
+      lastFps = now;
+    }
+  }
+  requestAnimationFrame(loop);
+
+  // Язык интерфейса: список языков во вкладке в шапке, выбор запоминается в этом браузере
+  function setAttr(id, name, value) {
+    var el = document.getElementById(id);
+    if (el) el.setAttribute(name, value);
+  }
+  function applyLang() {
+    document.documentElement.lang = i18n.lang;
+    document.documentElement.dir = I18N[i18n.lang].rtl ? "rtl" : "ltr";
+    document.title = tr("title");
+    setNumberFormats();
+    Array.prototype.forEach.call(document.querySelectorAll("[data-i18n]"), function (el) {
+      el.textContent = tr(el.getAttribute("data-i18n"));
+    });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-i18n-title]"), function (el) {
+      el.title = tr(el.getAttribute("data-i18n-title"));
+    });
+    document.getElementById("bed-summary").textContent = tr("bed") + ", " + tr("mm");
+    ["x", "y"].forEach(function (a) {
+      var name = tr(a === "x" ? "width" : "length") + " (" + a.toUpperCase() + ")";
+      setAttr("bed-" + a + "-range", "aria-label", name + ", " + tr("slider"));
+      setAttr("bed-" + a + "-num", "aria-label", name + ", " + tr("mm"));
+    });
+    [["nozzle", "nozzle", false], ["bed", "bed", false], ["nozzle1", "nozzle", true], ["bed1", "bed", true]].forEach(function (r) {
+      var name = tr(r[1]) + (r[2] ? ", " + tr("firstLayerShort") : "");
+      setAttr("t-" + r[0] + "-range", "aria-label", name + ", " + tr("slider"));
+      setAttr("t-" + r[0] + "-num", "aria-label", name + ", °C");
+      var lab = document.querySelector('label[for="t-' + r[0] + '-num"]');
+      if (lab) lab.title = name;
+    });
+    addToggle.textContent = tr("add") + " \u25be";
+    document.querySelector('[data-tool="rotate"]').textContent = tr("rotate") + " (R)";
+    document.querySelector('[data-tool="scale"]').textContent = tr("scale") + " (S)";
+    setAttr("lang-select", "aria-label", tr("language"));
+    setAttr("lang-label", "title", tr("language"));
+    if (statusEl.className === "") statusEl.textContent = tr("loading");
+    updateHint();
+    updateToolLabel();
+    updateInfo();
+  }
+  var langSelect = document.getElementById("lang-select");
+  I18N_ORDER.forEach(function (code) {
+    var o = document.createElement("option");
+    o.value = code;
+    o.textContent = I18N[code].langName;
+    langSelect.appendChild(o);
+  });
+  langSelect.value = i18n.lang;
+  langSelect.addEventListener("change", function () {
+    if (!I18N[langSelect.value]) return;
+    i18n.lang = langSelect.value;
+    try { localStorage.setItem("slicer.lang", i18n.lang); } catch (e) {}
+    applyLang();
+    langSelect.blur(); // чтобы клавиши R, S и Delete снова работали сразу после выбора
+  });
+  applyLang();
+})();
+</script>
+</body>
+</html>
